@@ -1,7 +1,7 @@
 import { db } from "@/services/firebase";
 import { addDoc, collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { Modal, StyleSheet, Text, View } from "react-native";
+import { Linking, Modal, StyleSheet, Text, View } from "react-native";
 
 // Gluestack Select
 import { ChevronDownIcon } from "@/components/ui/icon";
@@ -99,6 +99,12 @@ export default function TransactionScreen() {
     loadTransactions();
   };
 
+  const handleSendWhatsApp = (item: any) => {
+    const message = `Halo ${item.name},\n\nTerima kasih sudah membeli paket ${item.package}.\nTotal belanja: Rp ${item.total_spending}.\n\nLink: ${item.link}`;
+    const url = `https://wa.me/${item.phone}?text=${encodeURIComponent(message)}`;
+    Linking.openURL(url);
+  };
+
   return (
     <View style={{ flex: 1, padding: 16 }}>
       {/* Form */}
@@ -185,13 +191,22 @@ export default function TransactionScreen() {
               <TableData>{item.link}</TableData>
               <TableData>{item.total_spending}</TableData>
               <TableData>
-                <Button
-                  onPress={() => setDeleteId(item.id)}
-                  action="negative"
-                  variant="solid"
-                >
-                  <ButtonText>Delete</ButtonText>
-                </Button>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  <Button
+                    onPress={() => setDeleteId(item.id)}
+                    action="negative"
+                    variant="solid"
+                  >
+                    <ButtonText>Delete</ButtonText>
+                  </Button>
+                  <Button
+                    onPress={() => handleSendWhatsApp(item)}
+                    action="positive"
+                    variant="solid"
+                  >
+                    <ButtonText>Kirim WA</ButtonText>
+                  </Button>
+                </View>
               </TableData>
             </TableRow>
           ))}

@@ -164,7 +164,6 @@ export default function TransactionScreen() {
         </Button>
       </View>
 
-      {/* Table Transaksi */}
       <Table className="w-full">
         <TableHeader>
           <TableRow>
@@ -176,6 +175,7 @@ export default function TransactionScreen() {
             <TableHead>Aksi</TableHead>
           </TableRow>
         </TableHeader>
+
         <TableBody>
           {transactions.map((item) => (
             <TableRow key={item.id}>
@@ -185,7 +185,11 @@ export default function TransactionScreen() {
               <TableData>{item.link}</TableData>
               <TableData>{item.total_spending}</TableData>
               <TableData>
-                <Button onPress={() => setDeleteId(item.id)} action="negative" variant="solid">
+                <Button
+                  onPress={() => setDeleteId(item.id)}
+                  action="negative"
+                  variant="solid"
+                >
                   <ButtonText>Delete</ButtonText>
                 </Button>
               </TableData>

@@ -1,7 +1,7 @@
 import { db } from "@/services/firebase";
 import { addDoc, collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { Button, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Modal, StyleSheet, Text, View } from "react-native";
 
 // Gluestack Select
 import { ChevronDownIcon } from "@/components/ui/icon";
@@ -30,6 +30,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+// Gluestack Button
+import { Button, ButtonText } from "@/components/ui/button";
 
 export default function TransactionScreen() {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -156,7 +159,9 @@ export default function TransactionScreen() {
           />
         </Input>
 
-        <Button title="Simpan" onPress={handleSubmit} />
+        <Button onPress={handleSubmit} action="primary" variant="solid">
+          <ButtonText>Simpan</ButtonText>
+        </Button>
       </View>
 
       {/* Table Transaksi */}
@@ -180,12 +185,9 @@ export default function TransactionScreen() {
               <TableData>{item.link}</TableData>
               <TableData>{item.total_spending}</TableData>
               <TableData>
-                <TouchableOpacity
-                  onPress={() => setDeleteId(item.id)}
-                  style={{ backgroundColor: "red", padding: 6, borderRadius: 6 }}
-                >
-                  <Text style={{ color: "white" }}>Delete</Text>
-                </TouchableOpacity>
+                <Button onPress={() => setDeleteId(item.id)} action="negative" variant="solid">
+                  <ButtonText>Delete</ButtonText>
+                </Button>
               </TableData>
             </TableRow>
           ))}
@@ -200,18 +202,22 @@ export default function TransactionScreen() {
               Yakin mau hapus data ini?
             </Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
-              <TouchableOpacity
+              <Button
                 onPress={() => setDeleteId(null)}
-                style={[styles.btn, { backgroundColor: "gray" }]}
+                action="secondary"
+                variant="outline"
+                className="flex-1"
               >
-                <Text style={{ color: "white" }}>Batal</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+                <ButtonText>Batal</ButtonText>
+              </Button>
+              <Button
                 onPress={handleDelete}
-                style={[styles.btn, { backgroundColor: "red" }]}
+                action="negative"
+                variant="solid"
+                className="flex-1"
               >
-                <Text style={{ color: "white" }}>Hapus</Text>
-              </TouchableOpacity>
+                <ButtonText>Hapus</ButtonText>
+              </Button>
             </View>
           </View>
         </View>
@@ -232,12 +238,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     width: "80%",
-    alignItems: "center",
-  },
-  btn: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
     alignItems: "center",
   },
 });

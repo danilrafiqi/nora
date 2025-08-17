@@ -1,34 +1,40 @@
 import { db } from "@/services/firebase";
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-} from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import {
-  Button,
-  FlatList,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Button, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-export interface Transaction {
-  id: string; // Firestore doc ID
-  link: string;
-  name: string;
-  package: string;
-  phone: string;
-  total_spending: number;
-}
+// Gluestack Select
+import { ChevronDownIcon } from "@/components/ui/icon";
+import {
+  Select,
+  SelectBackdrop,
+  SelectContent,
+  SelectDragIndicator,
+  SelectDragIndicatorWrapper,
+  SelectIcon,
+  SelectInput,
+  SelectItem,
+  SelectPortal,
+  SelectTrigger,
+} from "@/components/ui/select";
+
+// Gluestack Input
+import { Input, InputField } from "@/components/ui/input";
+
+// Gluestack Table
+import {
+  Table,
+  TableBody,
+  TableData,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function TransactionScreen() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [packages, setPackages] = useState<any[]>([]);
+
   const [form, setForm] = useState({
     link: "",
     name: "",
@@ -39,21 +45,29 @@ export default function TransactionScreen() {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // ambil transaction
   const loadTransactions = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, "transaction"));
-      const items: Transaction[] = querySnapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...(docSnap.data() as Omit<Transaction, "id">),
-      }));
-      setTransactions(items);
-    } catch (err) {
-      console.error("Error ambil data:", err);
-    }
+    const querySnapshot = await getDocs(collection(db, "transaction"));
+    const items = querySnapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    }));
+    setTransactions(items);
+  };
+
+  // ambil package
+  const loadPackages = async () => {
+    const querySnapshot = await getDocs(collection(db, "package"));
+    const items = querySnapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    }));
+    setPackages(items);
   };
 
   useEffect(() => {
     loadTransactions();
+    loadPackages();
   }, []);
 
   const handleChange = (key: string, value: string) => {
@@ -66,111 +80,120 @@ export default function TransactionScreen() {
       return;
     }
 
-    try {
-      await addDoc(collection(db, "transaction"), {
-        link: form.link,
-        name: form.name,
-        package: form.package,
-        phone: form.phone,
-        total_spending: Number(form.total_spending),
-      });
+    await addDoc(collection(db, "transaction"), {
+      ...form,
+      total_spending: Number(form.total_spending),
+    });
 
-      alert("Transaksi berhasil ditambahkan");
-      setForm({
-        link: "",
-        name: "",
-        package: "",
-        phone: "",
-        total_spending: "",
-      });
-      loadTransactions();
-    } catch (err) {
-      console.error("Error tambah data:", err);
-      alert("Gagal menambahkan transaksi");
-    }
+    setForm({ link: "", name: "", package: "", phone: "", total_spending: "" });
+    loadTransactions();
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    try {
-      await deleteDoc(doc(db, "transaction", deleteId));
-      setDeleteId(null);
-      loadTransactions();
-    } catch (err) {
-      console.error("Error hapus data:", err);
-      alert("Gagal menghapus transaksi");
-    }
+    await deleteDoc(doc(db, "transaction", deleteId));
+    setDeleteId(null);
+    loadTransactions();
   };
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      {/* Form Input */}
-      <View style={styles.form}>
-        <TextInput
-          placeholder="Link"
-          value={form.link}
-          onChangeText={(text) => handleChange("link", text)}
-          style={styles.input}
-        />
-        <TextInput
-          placeholder="Name"
-          value={form.name}
-          onChangeText={(text) => handleChange("name", text)}
-          style={styles.input}
-        />
-        <TextInput
-          placeholder="Package"
-          value={form.package}
-          onChangeText={(text) => handleChange("package", text)}
-          style={styles.input}
-        />
-        <TextInput
-          placeholder="Phone"
-          value={form.phone}
-          onChangeText={(text) => handleChange("phone", text)}
-          style={styles.input}
-          keyboardType="phone-pad"
-        />
-        <TextInput
-          placeholder="Total Spending"
-          value={form.total_spending}
-          onChangeText={(text) => handleChange("total_spending", text)}
-          style={styles.input}
-          keyboardType="numeric"
-        />
+      {/* Form */}
+      <View style={{ marginBottom: 16, gap: 12 }}>
+        <Input variant="outline" size="md">
+          <InputField
+            placeholder="Link"
+            value={form.link}
+            onChangeText={(text) => handleChange("link", text)}
+          />
+        </Input>
+
+        <Input variant="outline" size="md">
+          <InputField
+            placeholder="Name"
+            value={form.name}
+            onChangeText={(text) => handleChange("name", text)}
+          />
+        </Input>
+
+        {/* Select dari package */}
+        <Select
+          onValueChange={(val) => handleChange("package", val)}
+          selectedValue={form.package}
+        >
+          <SelectTrigger variant="outline" size="md">
+            <SelectInput placeholder="Pilih Package" />
+            <SelectIcon as={ChevronDownIcon} className="mr-3" />
+          </SelectTrigger>
+          <SelectPortal>
+            <SelectBackdrop />
+            <SelectContent>
+              <SelectDragIndicatorWrapper>
+                <SelectDragIndicator />
+              </SelectDragIndicatorWrapper>
+              {packages.map((pkg) => (
+                <SelectItem key={pkg.id} label={pkg.name} value={pkg.name} />
+              ))}
+            </SelectContent>
+          </SelectPortal>
+        </Select>
+
+        <Input variant="outline" size="md">
+          <InputField
+            placeholder="Phone"
+            value={form.phone}
+            onChangeText={(text) => handleChange("phone", text)}
+            keyboardType="phone-pad"
+          />
+        </Input>
+
+        <Input variant="outline" size="md">
+          <InputField
+            placeholder="Total Spending"
+            value={form.total_spending}
+            onChangeText={(text) => handleChange("total_spending", text)}
+            keyboardType="numeric"
+          />
+        </Input>
+
         <Button title="Simpan" onPress={handleSubmit} />
       </View>
 
-      {/* List Transaksi */}
-      <FlatList
-        data={transactions}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.item}>
-            <View style={{ flex: 1 }}>
-              <Text>📦 Package: {item.package}</Text>
-              <Text>👤 Name: {item.name}</Text>
-              <Text>📞 Phone: {item.phone}</Text>
-              <Text>🔗 Link: {item.link}</Text>
-              <Text>💰 Total Spending: {item.total_spending}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => setDeleteId(item.id)}
-            >
-              <Text style={{ color: "white" }}>Delete</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
+      {/* Table Transaksi */}
+      <Table className="w-full">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Package</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Phone</TableHead>
+            <TableHead>Link</TableHead>
+            <TableHead>Total</TableHead>
+            <TableHead>Aksi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {transactions.map((item) => (
+            <TableRow key={item.id}>
+              <TableData>{item.package}</TableData>
+              <TableData>{item.name}</TableData>
+              <TableData>{item.phone}</TableData>
+              <TableData>{item.link}</TableData>
+              <TableData>{item.total_spending}</TableData>
+              <TableData>
+                <TouchableOpacity
+                  onPress={() => setDeleteId(item.id)}
+                  style={{ backgroundColor: "red", padding: 6, borderRadius: 6 }}
+                >
+                  <Text style={{ color: "white" }}>Delete</Text>
+                </TouchableOpacity>
+              </TableData>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
-      {/* Modal Konfirmasi Hapus */}
-      <Modal
-        visible={!!deleteId}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setDeleteId(null)}
-      >
+      {/* Modal Hapus */}
+      <Modal visible={!!deleteId} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.modalBox}>
             <Text style={{ fontSize: 16, marginBottom: 20 }}>
@@ -198,31 +221,6 @@ export default function TransactionScreen() {
 }
 
 const styles = StyleSheet.create({
-  form: {
-    marginBottom: 16,
-    gap: 12,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  item: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 10,
-    borderBottomWidth: 1,
-    borderColor: "#eee",
-  },
-  deleteButton: {
-    backgroundColor: "red",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",

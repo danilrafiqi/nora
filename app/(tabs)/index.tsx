@@ -1,7 +1,7 @@
 import { db } from "@/services/firebase";
 import { addDoc, collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { Linking, Modal, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Linking, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 
 // Gluestack Select
 import { ChevronDownIcon } from "@/components/ui/icon";
@@ -169,50 +169,58 @@ export default function TransactionScreen() {
           <ButtonText>Simpan</ButtonText>
         </Button>
       </View>
+      <ScrollView horizontal>
+        {/* Container tabel */}
+        <View style={{ width: Dimensions.get("screen").width - 32, flex: 1 }}>
+          {/* Scroll vertikal untuk body */}
+          <ScrollView style={{ flex: 1 }}>
 
-      <Table className="w-full">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Package</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>Link</TableHead>
-            <TableHead>Total</TableHead>
-            <TableHead>Aksi</TableHead>
-          </TableRow>
-        </TableHeader>
 
-        <TableBody>
-          {transactions.map((item) => (
-            <TableRow key={item.id}>
-              <TableData>{item.package}</TableData>
-              <TableData>{item.name}</TableData>
-              <TableData>{item.phone}</TableData>
-              <TableData>{item.link}</TableData>
-              <TableData>{item.total_spending}</TableData>
-              <TableData>
-                <View style={{ flexDirection: "row", gap: 6 }}>
-                  <Button
-                    onPress={() => setDeleteId(item.id)}
-                    action="negative"
-                    variant="solid"
-                  >
-                    <ButtonText>Delete</ButtonText>
-                  </Button>
-                  <Button
-                    onPress={() => handleSendWhatsApp(item)}
-                    action="positive"
-                    variant="solid"
-                  >
-                    <ButtonText>Kirim WA</ButtonText>
-                  </Button>
-                </View>
-              </TableData>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+            <Table className="w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Package</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Link</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
 
+              <TableBody>
+                {transactions.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableData>{item.package}</TableData>
+                    <TableData>{item.name}</TableData>
+                    <TableData>{item.phone}</TableData>
+                    <TableData>{item.link}</TableData>
+                    <TableData>{item.total_spending}</TableData>
+                    <TableData>
+                      <View style={{ flexDirection: "row", gap: 6 }}>
+                        <Button
+                          onPress={() => setDeleteId(item.id)}
+                          action="negative"
+                          variant="solid"
+                        >
+                          <ButtonText>Delete</ButtonText>
+                        </Button>
+                        <Button
+                          onPress={() => handleSendWhatsApp(item)}
+                          action="positive"
+                          variant="solid"
+                        >
+                          <ButtonText>Kirim WA</ButtonText>
+                        </Button>
+                      </View>
+                    </TableData>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollView>
+        </View>
+      </ScrollView>
       {/* Modal Hapus */}
       <Modal visible={!!deleteId} transparent animationType="fade">
         <View style={styles.overlay}>

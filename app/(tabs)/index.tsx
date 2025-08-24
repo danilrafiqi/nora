@@ -342,9 +342,9 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`
               <TableBody>
                 {transactions.map((item) => (
                   <TableRow key={item.id}>
-                    <TableData>{item.package}</TableData>
-                    <TableData>{item.name}</TableData>
+                    <TableData>{item.name.slice(0, 20)}</TableData>
                     <TableData>{item.phone}</TableData>
+                    <TableData>{item.package}</TableData>
                     <TableData>{item.link}</TableData>
                     <TableData>{item.total_spending}</TableData>
                     <TableData>

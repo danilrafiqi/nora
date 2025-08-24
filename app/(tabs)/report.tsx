@@ -1,32 +1,120 @@
+import { db } from "@/services/firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { ScrollView } from "react-native";
+
+// Gluestack
 import { Box } from "@/components/ui/box";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { ScrollView } from "react-native";
+
+type Transaction = {
+  id: string;
+  name: string;
+  package: string;
+  phone: string;
+  link: string;
+  total_spending: number;
+  created_at: string; // ISO string
+};
 
 export default function ReportPage() {
-  const reports = [
-    { title: "Hari ini", value: "Rp 1.200.000" },
-    { title: "Minggu ini", value: "Rp 8.750.000" },
-    { title: "Bulan ini", value: "Rp 32.400.000" },
-    { title: "Tahun ini", value: "Rp 287.000.000" },
-    { title: "7 Hari Terakhir", value: "Rp 6.950.000" },
-    { title: "30 Hari Terakhir", value: "Rp 27.800.000" },
-    { title: "365 Hari Terakhir", value: "Rp 320.000.000" },
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [report, setReport] = useState<any>({
+    daily: 0,
+    weekly: 0,
+    monthly: 0,
+    yearly: 0,
+    last7: 0,
+    last30: 0,
+    last365: 0,
+  });
+
+  // ambil data transaksi dari firestore
+  const loadTransactions = async () => {
+    const querySnapshot = await getDocs(collection(db, "transaction"));
+    const items: Transaction[] = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Transaction[];
+    setTransactions(items);
+  };
+
+  const calculateReports = (items: Transaction[]) => {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(startOfDay);
+    startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay()); // minggu ini
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+    let daily = 0,
+      weekly = 0,
+      monthly = 0,
+      yearly = 0,
+      last7 = 0,
+      last30 = 0,
+      last365 = 0,
+      all = 0; // 🔹 total semua transaksi
+
+    items.forEach((t) => {
+      const d = new Date(t.created_at);
+      const spend = Number(t.total_spending);
+
+      all += spend; // 🔹 total keseluruhan
+
+      if (d >= startOfDay) daily += spend;
+      if (d >= startOfWeek) weekly += spend;
+      if (d >= startOfMonth) monthly += spend;
+      if (d >= startOfYear) yearly += spend;
+
+      const diffDays = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 7) last7 += spend;
+      if (diffDays <= 30) last30 += spend;
+      if (diffDays <= 365) last365 += spend;
+    });
+
+    setReport({ daily, weekly, monthly, yearly, last7, last30, last365, all });
+  };
+
+
+  useEffect(() => {
+    loadTransactions();
+  }, []);
+
+  useEffect(() => {
+    if (transactions.length > 0) {
+      calculateReports(transactions);
+    }
+  }, [transactions]);
+
+  const formatCurrency = (num: number) =>
+    "Rp " + num.toLocaleString("id-ID");
+
+  const reportCards = [
+    { title: "Hari ini", value: report.daily },
+    { title: "Minggu ini", value: report.weekly },
+    { title: "Bulan ini", value: report.monthly },
+    { title: "Tahun ini", value: report.yearly },
+    { title: "7 Hari Terakhir", value: report.last7 },
+    { title: "30 Hari Terakhir", value: report.last30 },
+    { title: "365 Hari Terakhir", value: report.last365 },
+    { title: "Total Keseluruhan", value: report.all }, // 🔹 tambahan
   ];
 
   return (
     <ScrollView className="flex-1 bg-background-0">
       <VStack space="md" className="p-4">
-        {reports.map((report, idx) => (
+        {reportCards.map((card, idx) => (
           <Box
             key={idx}
             className="bg-background-100 p-4 rounded-xl shadow-sm"
           >
             <HStack className="justify-between items-center">
-              <Text className="text-lg font-bold">{report.title}</Text>
+              <Text className="text-lg font-bold">{card.title}</Text>
               <Text className="text-lg text-success-600 font-semibold">
-                {report.value}
+                {formatCurrency(card.value)}
               </Text>
             </HStack>
           </Box>

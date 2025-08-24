@@ -330,9 +330,9 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`
             <Table className="w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Package</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
+                  <TableHead>Package</TableHead>
                   <TableHead>Link</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Aksi</TableHead>
@@ -342,7 +342,7 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`
               <TableBody>
                 {transactions.map((item) => (
                   <TableRow key={item.id}>
-                    <TableData>{item.name.slice(0, 20)}</TableData>
+                    <TableData>{item.name.slice(0, 12)}</TableData>
                     <TableData>{item.phone}</TableData>
                     <TableData>{item.package}</TableData>
                     <TableData>{item.link}</TableData>

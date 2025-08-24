@@ -1,7 +1,7 @@
 import { db } from "@/services/firebase";
 import { addDoc, collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { Dimensions, Linking, Modal, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Linking, Modal, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 // Gluestack Select
 import { ChevronDownIcon } from "@/components/ui/icon";
@@ -100,18 +100,162 @@ export default function TransactionScreen() {
     loadTransactions();
   };
 
+  const templates = [
+    (item: any) => `Halo ${item.name}, 👋
+
+Terima kasih sudah memilih Nora Self Photo Studio dan membeli paket ${item.package}. ✨
+Total belanja Anda: Rp ${item.total_spending}.
+
+Berikut link hasil foto Anda (tersedia 7 hari saja, jangan lupa download ya):  
+${item.link}
+
+Kami akan sangat senang jika Anda bisa berbagi pengalaman dengan memberikan review di Google Maps ⭐  
+👉 https://maps.app.goo.gl/ZpW1UPQQfN51ycpN9  
+
+Dan jangan lupa tag kami di Instagram 📸  
+👉 https://instagram.com/norastudioid  
+
+Semoga hasil fotonya berkesan. Ditunggu kedatangan Anda kembali di sesi foto berikutnya! 💕`,
+
+    (item: any) => `Halo ${item.name},  
+Terima kasih atas kepercayaan Anda memilih paket ${item.package}.  
+Total transaksi: Rp ${item.total_spending}.  
+
+Silakan download hasil foto Anda di link berikut (berlaku 7 hari):  
+${item.link}  
+
+Kami akan sangat menghargai jika Anda meninggalkan review di Google Maps:  
+https://maps.app.goo.gl/ZpW1UPQQfN51ycpN9  
+
+Jangan lupa juga mention Instagram kami:  
+https://instagram.com/norastudioid  
+
+Sampai jumpa pada sesi pemotretan berikutnya.`,
+
+    (item: any) => `Hai ${item.name}! 🎉  
+Seru banget tadi sesi fotonya dengan paket ${item.package}.  
+Total spending kamu: Rp ${item.total_spending}.  
+
+Hasil fotonya bisa kamu download di sini (ingat, cuma 7 hari ya ⏳):  
+${item.link}  
+
+Kalau suka hasilnya, kasih review di Google Maps ⭐  
+👉 https://maps.app.goo.gl/ZpW1UPQQfN51ycpN9  
+
+Upload di IG jangan lupa tag kami ya 😍  
+👉 https://instagram.com/norastudioid  
+
+Yuk, bikin sesi foto seru lagi bareng Nora Studio!`,
+
+    (item: any) => `Halo ${item.name}, 💖  
+Setiap momen punya cerita, dan hari ini cerita Anda sudah terabadikan dengan paket ${item.package}.  
+Total belanja: Rp ${item.total_spending}.  
+
+Download hasil fotonya di sini (tersedia 7 hari):  
+${item.link}  
+
+Akan sangat berarti bagi kami jika Anda bisa berbagi pengalaman lewat review di Google Maps:  
+https://maps.app.goo.gl/ZpW1UPQQfN51ycpN9  
+
+Tag juga Instagram kami agar bisa kami repost:  
+https://instagram.com/norastudioid  
+
+Semoga hasil foto ini selalu membawa senyum, dan kami tunggu untuk memotret cerita Anda berikutnya.`,
+
+    (item: any) => `Halo ${item.name},  
+Terima kasih telah memilih paket ${item.package} eksklusif dari Nora Self Photo Studio.  
+Total transaksi: Rp ${item.total_spending}.  
+
+Link download foto Anda (hanya aktif 7 hari):  
+${item.link}  
+
+Dukung kami dengan review bintang 5 di Google Maps ⭐  
+👉 https://maps.app.goo.gl/ZpW1UPQQfN51ycpN9  
+
+Tag Instagram kami agar hasil foto Anda bisa tampil di feed eksklusif Nora Studio:  
+👉 https://instagram.com/norastudioid  
+
+Kami siap memberikan pengalaman yang lebih istimewa pada sesi foto berikutnya.`,
+
+    (item: any) => `Yo ${item.name}! 😎  
+Thanks banget udah ambil paket ${item.package}.  
+Total spending: Rp ${item.total_spending}.  
+
+Ini link download foto kamu (ingat, 7 hari doang bro):  
+${item.link}  
+
+Kalau puas, review di Google Maps dong ⭐  
+👉 https://maps.app.goo.gl/ZpW1UPQQfN51ycpN9  
+
+Upload IG? Jangan lupa tag kami! 📸  
+👉 https://instagram.com/norastudioid  
+
+Next time foto lagi bareng, biar makin kece!`,
+
+    (item: any) => `Halo ${item.name}, 👨‍👩‍👧‍👦  
+Terima kasih sudah mempercayakan momen keluarga pada paket ${item.package}.  
+Total belanja: Rp ${item.total_spending}.  
+
+Download hasil foto keluarga Anda di sini (hanya 7 hari):  
+${item.link}  
+
+Kami senang sekali jika Anda bisa memberi review di Google Maps:  
+https://maps.app.goo.gl/ZpW1UPQQfN51ycpN9  
+
+Dan jangan lupa tag Instagram kami supaya kenangan keluarga Anda bisa kami bagikan:  
+https://instagram.com/norastudioid  
+
+Kami tunggu momen berharga berikutnya untuk diabadikan bersama Anda.`,
+
+    (item: any) => `Halo ${item.name},  
+Terima kasih sudah menggunakan paket ${item.package} (Rp ${item.total_spending}).  
+
+Link download (7 hari): ${item.link}  
+
+Review: https://maps.app.goo.gl/ZpW1UPQQfN51ycpN9  
+IG: https://instagram.com/norastudioid  
+
+Sampai jumpa di sesi foto berikutnya!`,
+
+    (item: any) => `Halo ${item.name}, 🎁  
+Terima kasih sudah ambil paket ${item.package} (Rp ${item.total_spending}).  
+
+Hasil foto bisa diunduh (7 hari):  
+${item.link}  
+
+Boleh dong kasih review di Google Maps ⭐  
+👉 https://maps.app.goo.gl/ZpW1UPQQfN51ycpN9  
+
+Upload IG jangan lupa tag kami ya 📸  
+👉 https://instagram.com/norastudioid  
+
+✨ Spesial untuk Anda, dapatkan diskon 10% untuk sesi foto berikutnya. Yuk booking lagi sebelum bulan ini berakhir!`,
+
+    (item: any) => `Halo ${item.name}, 🌟  
+Momen spesial Anda dengan paket ${item.package} sudah terabadikan.  
+Total belanja: Rp ${item.total_spending}.  
+
+Silakan unduh hasil foto (7 hari saja):  
+${item.link}  
+
+Jadikan pengalaman ini inspirasi untuk berbagi cerita di Google Maps:  
+https://maps.app.goo.gl/ZpW1UPQQfN51ycpN9  
+
+Dan jangan lupa, tag Instagram kami agar kenangan Anda bisa menginspirasi banyak orang:  
+https://instagram.com/norastudioid  
+
+Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`
+  ];
+
   const handleSendWhatsApp = (item: any) => {
-    const message = `Halo ${item.name},\n\nTerima kasih sudah membeli paket ${item.package}.\nTotal belanja: Rp ${item.total_spending}.\n\nLink: ${item.link}`;
+    // Pilih template random
+    const randomIndex = Math.floor(Math.random() * templates.length);
+    const message = templates[randomIndex](item);
+
     const url = `https://wa.me/${item.phone}?text=${encodeURIComponent(message)}`;
     Linking.openURL(url);
   };
 
-  const [fullWidth, setFullWidth] = useState(Dimensions.get("screen").width);
-  useEffect(() => {
-    Dimensions.addEventListener("change", ({ screen }) => {
-      setFullWidth(screen.width);
-    })
-  }, []);
 
   return (
     <View style={{ flex: 1, padding: 16 }}>

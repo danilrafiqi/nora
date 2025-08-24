@@ -1,7 +1,7 @@
 import { db } from "@/services/firebase";
-import { addDoc, collection, deleteDoc, doc, getDocs } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { Linking, Modal, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Linking, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 
 // Gluestack Select
 import { ChevronDownIcon } from "@/components/ui/icon";
@@ -37,7 +37,6 @@ import { Button, ButtonText } from "@/components/ui/button";
 export default function TransactionScreen() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
-  const dimension = useWindowDimensions()
 
   const [form, setForm] = useState({
     link: "",
@@ -51,7 +50,8 @@ export default function TransactionScreen() {
 
   // ambil transaction
   const loadTransactions = async () => {
-    const querySnapshot = await getDocs(collection(db, "transaction"));
+    const q = query(collection(db, "transaction"), orderBy("created_at", "desc"));
+    const querySnapshot = await getDocs(q);
     const items = querySnapshot.docs.map((docSnap) => ({
       id: docSnap.id,
       ...docSnap.data(),
@@ -87,6 +87,7 @@ export default function TransactionScreen() {
     await addDoc(collection(db, "transaction"), {
       ...form,
       total_spending: Number(form.total_spending),
+      created_at: new Date().toISOString(), // <<<< TAMBAH created_at
     });
 
     setForm({ link: "", name: "", package: "", phone: "", total_spending: "" });

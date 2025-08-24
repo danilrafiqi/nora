@@ -1,7 +1,7 @@
 import { db } from "@/services/firebase";
 import { addDoc, collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { Dimensions, Linking, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Modal, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 // Gluestack Select
 import { ChevronDownIcon } from "@/components/ui/icon";
@@ -37,6 +37,7 @@ import { Button, ButtonText } from "@/components/ui/button";
 export default function TransactionScreen() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
+  const dimension = useWindowDimensions()
 
   const [form, setForm] = useState({
     link: "",
@@ -171,11 +172,9 @@ export default function TransactionScreen() {
       </View>
       <ScrollView horizontal>
         {/* Container tabel */}
-        <View style={{ width: Dimensions.get("screen").width - 32, flex: 1 }}>
+        <View style={{ width: dimension.width - 32, flex: 1 }}>
           {/* Scroll vertikal untuk body */}
           <ScrollView style={{ flex: 1 }}>
-
-
             <Table className="w-full">
               <TableHeader>
                 <TableRow>

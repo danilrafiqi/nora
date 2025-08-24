@@ -177,9 +177,9 @@ export default function TransactionScreen() {
           <ButtonText>Simpan</ButtonText>
         </Button>
       </View>
-      <ScrollView horizontal>
+      <ScrollView>
         {/* Container tabel */}
-        <View style={{ width: fullWidth - 32, flex: 1 }}>
+        <View className="w-screen flex-1">
           {/* Scroll vertikal untuk body */}
           <ScrollView style={{ flex: 1 }}>
             <Table className="w-full">

@@ -90,7 +90,7 @@ export default function ReportPage() {
   }, [transactions]);
 
   const formatCurrency = (num: number) =>
-    "Rp " + num.toLocaleString("id-ID");
+    "Rp " + num?.toLocaleString("id-ID");
 
   const reportCards = [
     { title: "Hari ini", value: report.daily },

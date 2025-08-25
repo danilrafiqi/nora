@@ -326,49 +326,58 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`
         {/* Container tabel */}
         <View className="w-screen flex-1">
           {/* Scroll vertikal untuk body */}
-          <ScrollView style={{ flex: 1 }}>
-            <Table className="w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Package</TableHead>
-                  <TableHead>Link</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {transactions.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableData>{item.name.slice(0, 12)}</TableData>
-                    <TableData>{item.phone}</TableData>
-                    <TableData>{item.package}</TableData>
-                    <TableData>{item.link}</TableData>
-                    <TableData>{item.total_spending}</TableData>
-                    <TableData>
-                      <View style={{ flexDirection: "row", gap: 6 }}>
-                        <Button
-                          onPress={() => setDeleteId(item.id)}
-                          action="negative"
-                          variant="solid"
-                        >
-                          <ButtonText>Delete</ButtonText>
-                        </Button>
-                        <Button
-                          onPress={() => handleSendWhatsApp(item)}
-                          action="positive"
-                          variant="solid"
-                        >
-                          <ButtonText>Kirim WA</ButtonText>
-                        </Button>
-                      </View>
-                    </TableData>
+          <ScrollView
+            horizontal={true}
+            showsHorizontalScrollIndicator={true}
+            contentContainerStyle={{ flexGrow: 1 }}
+          >
+            <ScrollView
+              showsVerticalScrollIndicator={true}
+              style={{ width: '100%' }}
+            >
+              <Table className="w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Package</TableHead>
+                    <TableHead>Link</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Aksi</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+
+                <TableBody>
+                  {transactions.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableData>{item.name.slice(0, 12)}</TableData>
+                      <TableData>{item.phone}</TableData>
+                      <TableData>{item.package}</TableData>
+                      <TableData>{item.link}</TableData>
+                      <TableData>{item.total_spending}</TableData>
+                      <TableData>
+                        <View style={{ flexDirection: "row", gap: 6 }}>
+                          <Button
+                            onPress={() => setDeleteId(item.id)}
+                            action="negative"
+                            variant="solid"
+                          >
+                            <ButtonText>Delete</ButtonText>
+                          </Button>
+                          <Button
+                            onPress={() => handleSendWhatsApp(item)}
+                            action="positive"
+                            variant="solid"
+                          >
+                            <ButtonText>Kirim WA</ButtonText>
+                          </Button>
+                        </View>
+                      </TableData>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollView>
           </ScrollView>
         </View>
       </ScrollView>

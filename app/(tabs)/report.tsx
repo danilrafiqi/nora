@@ -8,6 +8,13 @@ import { Box } from "@/components/ui/box";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
+import {
+  differenceInDays,
+  isSameDay,
+  isSameMonth,
+  isSameWeek,
+  isSameYear,
+} from "date-fns";
 
 type Transaction = {
   id: string;
@@ -41,13 +48,10 @@ export default function ReportPage() {
     setTransactions(items);
   };
 
-  const calculateReports = (items: Transaction[]) => {
+  const calculateReports = (items: Transaction[], timezone = 'Asia/Jakarta') => {
+    // Dapatkan tanggal saat ini dalam UTC
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfWeek = new Date(startOfDay);
-    startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay()); // minggu ini
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const nowUTC = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
 
     let daily = 0,
       weekly = 0,
@@ -56,20 +60,21 @@ export default function ReportPage() {
       last7 = 0,
       last30 = 0,
       last365 = 0,
-      all = 0; // 🔹 total semua transaksi
+      all = 0;
 
     items.forEach((t) => {
-      const d = new Date(t.created_at);
-      const spend = Number(t.total_spending);
+      const d = new Date(t.created_at); // Ini sudah UTC
+      const spend = Number(t.total_spending) || 0;
 
-      all += spend; // 🔹 total keseluruhan
+      all += spend;
 
-      if (d >= startOfDay) daily += spend;
-      if (d >= startOfWeek) weekly += spend;
-      if (d >= startOfMonth) monthly += spend;
-      if (d >= startOfYear) yearly += spend;
+      // Bandingkan dalam UTC
+      if (isSameDay(d, nowUTC)) daily += spend;
+      if (isSameWeek(d, nowUTC, { weekStartsOn: 1 })) weekly += spend;
+      if (isSameMonth(d, nowUTC)) monthly += spend;
+      if (isSameYear(d, nowUTC)) yearly += spend;
 
-      const diffDays = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
+      const diffDays = differenceInDays(nowUTC, d);
       if (diffDays <= 7) last7 += spend;
       if (diffDays <= 30) last30 += spend;
       if (diffDays <= 365) last365 += spend;

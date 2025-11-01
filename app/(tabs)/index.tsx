@@ -1,9 +1,10 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/services/firebase";
-import { useRouter } from "expo-router";
+import { normalizePhone } from "@/utils/phoneNormalizer";
 import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import { addDoc, collection, deleteDoc, doc, limit as fbLimit, getDocs, orderBy, query, startAfter } from "firebase/firestore";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Linking, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 
 // Gluestack Select
@@ -344,10 +345,22 @@ https://instagram.com/norastudioid
 Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`,
   ];
 
+  const getPhotosUrl = (phone: string): string => {
+    const normalized = normalizePhone(phone);
+    const baseUrl = 'https://nora.daridasar.com';
+    return `${baseUrl}/photos/${normalized}`;
+  };
+
   const handleSendWhatsApp = (item: TransactionItem) => {
+    // Generate link photos page
+    const photosUrl = getPhotosUrl(item.phone);
+
     // Pilih template random
     const randomIndex = Math.floor(Math.random() * templates.length);
-    const message = templates[randomIndex](item);
+    let message = templates[randomIndex](item);
+
+    // Replace item.link dengan photosUrl
+    message = message.replace(item.link, photosUrl);
 
     const url = `https://wa.me/${item.phone}?text=${encodeURIComponent(message)}`;
     Linking.openURL(url);

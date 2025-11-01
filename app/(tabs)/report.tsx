@@ -1,4 +1,6 @@
+import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/services/firebase";
+import { useRouter } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
@@ -27,6 +29,8 @@ type Transaction = {
 };
 
 export default function ReportPage() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [report, setReport] = useState<any>({
     daily: 0,
@@ -85,8 +89,14 @@ export default function ReportPage() {
 
 
   useEffect(() => {
-    loadTransactions();
-  }, []);
+    if (!loading && !user) {
+      router.replace('/login');
+      return;
+    }
+    if (!loading && user) {
+      loadTransactions();
+    }
+  }, [loading, user]);
 
   useEffect(() => {
     if (transactions.length > 0) {
@@ -111,6 +121,7 @@ export default function ReportPage() {
   return (
     <ScrollView className="flex-1 bg-background-0">
       <VStack space="md" className="p-4">
+        {/* Report Cards */}
         {reportCards.map((card, idx) => (
           <Box
             key={idx}

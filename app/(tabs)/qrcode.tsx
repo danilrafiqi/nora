@@ -1,18 +1,28 @@
-import React, { useMemo, useRef, useState } from "react";
+import { Button, ButtonText } from "@/components/ui/button";
+import { Input, InputField } from "@/components/ui/input";
+import { Text } from "@/components/ui/text";
+import { useAuth } from "@/contexts/AuthContext";
+import * as FileSystem from "expo-file-system";
+import * as ImageManipulator from "expo-image-manipulator";
+import * as MediaLibrary from "expo-media-library";
+import { useRouter } from "expo-router";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, Platform, ScrollView, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
-import { Input, InputField } from "@/components/ui/input";
-import { Button, ButtonText } from "@/components/ui/button";
-import { Text } from "@/components/ui/text";
-import * as FileSystem from "expo-file-system";
-import * as MediaLibrary from "expo-media-library";
-import * as ImageManipulator from "expo-image-manipulator";
 
 export default function QRCodeGeneratorScreen() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const [url, setUrl] = useState<string>("");
   const [value, setValue] = useState<string>("");
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const qrRef = useRef<any>(null);
+  const qrRef = useRef<QRCode | null>(null);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [loading, user]);
 
   const isValid = useMemo(() => {
     if (!value) return false;

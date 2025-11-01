@@ -1,6 +1,9 @@
+import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/services/firebase";
-import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, limit as fbLimit, startAfter } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+import { addDoc, collection, deleteDoc, doc, limit as fbLimit, getDocs, orderBy, query, startAfter } from "firebase/firestore";
+import React, { useEffect, useState, useCallback } from "react";
 import { Linking, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 
 // Gluestack Select
@@ -34,12 +37,29 @@ import {
 // Gluestack Button
 import { Button, ButtonText } from "@/components/ui/button";
 
+type TransactionItem = {
+  id: string;
+  link: string;
+  name: string;
+  package: string;
+  phone: string;
+  total_spending: number;
+  created_at: string;
+};
+
+type PackageItem = {
+  id: string;
+  name: string;
+};
+
 export default function TransactionScreen() {
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [packages, setPackages] = useState<any[]>([]);
+  const router = useRouter();
+  const { user, loading, role, signOut } = useAuth();
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+  const [packages, setPackages] = useState<PackageItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [hasMore, setHasMore] = useState<boolean>(true);
-  const [lastVisible, setLastVisible] = useState<any>(null);
+  const [lastVisible, setLastVisible] = useState<unknown | null>(null);
   const pageSize = 20;
 
   const [form, setForm] = useState({
@@ -51,6 +71,7 @@ export default function TransactionScreen() {
   });
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
 
   // ambil transaction (paginated)
   const loadTransactions = async () => {
@@ -67,7 +88,7 @@ export default function TransactionScreen() {
       const items = docs.map((docSnap) => ({
         id: docSnap.id,
         ...docSnap.data(),
-      }));
+      })) as TransactionItem[];
       setTransactions(items);
       setLastVisible(docs[docs.length - 1] || null);
       setHasMore(docs.length === pageSize);
@@ -91,7 +112,7 @@ export default function TransactionScreen() {
       const items = docs.map((docSnap) => ({
         id: docSnap.id,
         ...docSnap.data(),
-      }));
+      })) as TransactionItem[];
       setTransactions((prev) => [...prev, ...items]);
       setLastVisible(docs[docs.length - 1] || null);
       setHasMore(docs.length === pageSize);
@@ -106,14 +127,30 @@ export default function TransactionScreen() {
     const items = querySnapshot.docs.map((docSnap) => ({
       id: docSnap.id,
       ...docSnap.data(),
-    }));
+    })) as PackageItem[];
     setPackages(items);
   };
 
+  // Reload data setiap kali screen difokuskan (termasuk saat refresh)
+  useFocusEffect(
+    useCallback(() => {
+      if (!loading && user) {
+        // Reset pagination
+        setLastVisible(null);
+        setHasMore(true);
+        setTransactions([]);
+        // Load data
+        loadTransactions();
+        loadPackages();
+      }
+    }, [loading, user])
+  );
+
   useEffect(() => {
-    loadTransactions();
-    loadPackages();
-  }, []);
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [loading, user, router]);
 
   const handleChange = (key: string, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -150,8 +187,18 @@ export default function TransactionScreen() {
     await loadTransactions();
   };
 
-  const templates = [
-    (item: any) => `Halo ${item.name}, 👋
+  type TransactionItem = {
+    id: string;
+    link: string;
+    name: string;
+    package: string;
+    phone: string;
+    total_spending: number;
+    created_at: string;
+  };
+
+  const templates: ((item: TransactionItem) => string)[] = [
+    (item) => `Halo ${item.name}, 👋
 
 Terima kasih sudah memilih Nora Self Photo Studio dan membeli paket ${item.package}. ✨
 Total belanja Anda: Rp ${item.total_spending}.
@@ -167,7 +214,7 @@ Dan jangan lupa tag kami di Instagram 📸
 
 Semoga hasil fotonya berkesan. Ditunggu kedatangan Anda kembali di sesi foto berikutnya! 💕`,
 
-    (item: any) => `Halo ${item.name},  
+    (item) => `Halo ${item.name},  
 Terima kasih atas kepercayaan Anda memilih paket ${item.package}.  
 Total transaksi: Rp ${item.total_spending}.  
 
@@ -182,7 +229,7 @@ https://instagram.com/norastudioid
 
 Sampai jumpa pada sesi pemotretan berikutnya.`,
 
-    (item: any) => `Hai ${item.name}! 🎉  
+    (item) => `Hai ${item.name}! 🎉  
 Seru banget tadi sesi fotonya dengan paket ${item.package}.  
 Total spending kamu: Rp ${item.total_spending}.  
 
@@ -197,7 +244,7 @@ Upload di IG jangan lupa tag kami ya 😍
 
 Yuk, bikin sesi foto seru lagi bareng Nora Studio!`,
 
-    (item: any) => `Halo ${item.name}, 💖  
+    (item) => `Halo ${item.name}, 💖  
 Setiap momen punya cerita, dan hari ini cerita Anda sudah terabadikan dengan paket ${item.package}.  
 Total belanja: Rp ${item.total_spending}.  
 
@@ -212,7 +259,7 @@ https://instagram.com/norastudioid
 
 Semoga hasil foto ini selalu membawa senyum, dan kami tunggu untuk memotret cerita Anda berikutnya.`,
 
-    (item: any) => `Halo ${item.name},  
+    (item) => `Halo ${item.name},  
 Terima kasih telah memilih paket ${item.package} eksklusif dari Nora Self Photo Studio.  
 Total transaksi: Rp ${item.total_spending}.  
 
@@ -227,7 +274,7 @@ Tag Instagram kami agar hasil foto Anda bisa tampil di feed eksklusif Nora Studi
 
 Kami siap memberikan pengalaman yang lebih istimewa pada sesi foto berikutnya.`,
 
-    (item: any) => `Yo ${item.name}! 😎  
+    (item) => `Yo ${item.name}! 😎  
 Thanks banget udah ambil paket ${item.package}.  
 Total spending: Rp ${item.total_spending}.  
 
@@ -242,7 +289,7 @@ Upload IG? Jangan lupa tag kami! 📸
 
 Next time foto lagi bareng, biar makin kece!`,
 
-    (item: any) => `Halo ${item.name}, 👨‍👩‍👧‍👦  
+    (item) => `Halo ${item.name}, 👨‍👩‍👧‍👦  
 Terima kasih sudah mempercayakan momen keluarga pada paket ${item.package}.  
 Total belanja: Rp ${item.total_spending}.  
 
@@ -257,7 +304,7 @@ https://instagram.com/norastudioid
 
 Kami tunggu momen berharga berikutnya untuk diabadikan bersama Anda.`,
 
-    (item: any) => `Halo ${item.name},  
+    (item) => `Halo ${item.name},  
 Terima kasih sudah menggunakan paket ${item.package} (Rp ${item.total_spending}).  
 
 Link download (7 hari): ${item.link}  
@@ -267,7 +314,7 @@ IG: https://instagram.com/norastudioid
 
 Sampai jumpa di sesi foto berikutnya!`,
 
-    (item: any) => `Halo ${item.name}, 🎁  
+    (item) => `Halo ${item.name}, 🎁  
 Terima kasih sudah ambil paket ${item.package} (Rp ${item.total_spending}).  
 
 Hasil foto bisa diunduh (7 hari):  
@@ -281,7 +328,7 @@ Upload IG jangan lupa tag kami ya 📸
 
 ✨ Spesial untuk Anda, dapatkan diskon 10% untuk sesi foto berikutnya. Yuk booking lagi sebelum bulan ini berakhir!`,
 
-    (item: any) => `Halo ${item.name}, 🌟  
+    (item) => `Halo ${item.name}, 🌟  
 Momen spesial Anda dengan paket ${item.package} sudah terabadikan.  
 Total belanja: Rp ${item.total_spending}.  
 
@@ -294,10 +341,10 @@ https://maps.app.goo.gl/ZpW1UPQQfN51ycpN9
 Dan jangan lupa, tag Instagram kami agar kenangan Anda bisa menginspirasi banyak orang:  
 https://instagram.com/norastudioid  
 
-Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`
+Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`,
   ];
 
-  const handleSendWhatsApp = (item: any) => {
+  const handleSendWhatsApp = (item: TransactionItem) => {
     // Pilih template random
     const randomIndex = Math.floor(Math.random() * templates.length);
     const message = templates[randomIndex](item);
@@ -306,69 +353,15 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`
     Linking.openURL(url);
   };
 
-
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      {/* Form */}
-      <View style={{ marginBottom: 16, gap: 12 }}>
-        <Input variant="outline" size="md">
-          <InputField
-            placeholder="Link"
-            value={form.link}
-            onChangeText={(text) => handleChange("link", text)}
-          />
-        </Input>
-
-        <Input variant="outline" size="md">
-          <InputField
-            placeholder="Name"
-            value={form.name}
-            onChangeText={(text) => handleChange("name", text)}
-          />
-        </Input>
-
-        {/* Select dari package */}
-        <Select
-          onValueChange={(val) => handleChange("package", val)}
-          selectedValue={form.package}
-        >
-          <SelectTrigger variant="outline" size="md">
-            <SelectInput placeholder="Pilih Package" />
-            <SelectIcon as={ChevronDownIcon} className="mr-3" />
-          </SelectTrigger>
-          <SelectPortal>
-            <SelectBackdrop />
-            <SelectContent>
-              <SelectDragIndicatorWrapper>
-                <SelectDragIndicator />
-              </SelectDragIndicatorWrapper>
-              {packages.map((pkg) => (
-                <SelectItem key={pkg.id} label={pkg.name} value={pkg.name} />
-              ))}
-            </SelectContent>
-          </SelectPortal>
-        </Select>
-
-        <Input variant="outline" size="md">
-          <InputField
-            placeholder="Phone"
-            value={form.phone}
-            onChangeText={(text) => handleChange("phone", text)}
-            keyboardType="phone-pad"
-          />
-        </Input>
-
-        <Input variant="outline" size="md">
-          <InputField
-            placeholder="Total Spending"
-            value={form.total_spending}
-            onChangeText={(text) => handleChange("total_spending", text)}
-            keyboardType="numeric"
-          />
-        </Input>
-
-        <Button onPress={handleSubmit} action="primary" variant="solid">
-          <ButtonText>Simpan</ButtonText>
+      {/* Header actions */}
+      <View style={{ marginBottom: 12, flexDirection: 'row', gap: 8 }}>
+        <Button onPress={() => setIsFormOpen(true)} action="primary" variant="solid" className="flex-1">
+          <ButtonText>Tambah Transaksi</ButtonText>
+        </Button>
+        <Button onPress={signOut} action="negative" variant="outline">
+          <ButtonText>Logout</ButtonText>
         </Button>
       </View>
       <ScrollView>
@@ -406,13 +399,15 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`
                       <TableData>{item.total_spending}</TableData>
                       <TableData>
                         <View style={{ flexDirection: "row", gap: 6 }}>
-                          <Button
-                            onPress={() => setDeleteId(item.id)}
-                            action="negative"
-                            variant="solid"
-                          >
-                            <ButtonText>Delete</ButtonText>
-                          </Button>
+                          {(role === 'super_admin' || role === 'admin') && (
+                            <Button
+                              onPress={() => setDeleteId(item.id)}
+                              action="negative"
+                              variant="solid"
+                            >
+                              <ButtonText>Delete</ButtonText>
+                            </Button>
+                          )}
                           <Button
                             onPress={() => handleSendWhatsApp(item)}
                             action="positive"
@@ -466,6 +461,75 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`
               >
                 <ButtonText>Hapus</ButtonText>
               </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Form Transaksi */}
+      <Modal visible={isFormOpen} transparent animationType="slide" onRequestClose={() => setIsFormOpen(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.modalBox}>
+            <Text style={{ fontSize: 18, marginBottom: 12 }}>Tambah Transaksi</Text>
+            <View style={{ width: '100%', gap: 10 }}>
+              <Input variant="outline" size="md">
+                <InputField
+                  placeholder="Link"
+                  value={form.link}
+                  onChangeText={(text) => handleChange("link", text)}
+                />
+              </Input>
+              <Input variant="outline" size="md">
+                <InputField
+                  placeholder="Name"
+                  value={form.name}
+                  onChangeText={(text) => handleChange("name", text)}
+                />
+              </Input>
+              <Select
+                onValueChange={(val) => handleChange("package", val)}
+                selectedValue={form.package}
+              >
+                <SelectTrigger variant="outline" size="md">
+                  <SelectInput placeholder="Pilih Package" />
+                  <SelectIcon as={ChevronDownIcon} className="mr-3" />
+                </SelectTrigger>
+                <SelectPortal>
+                  <SelectBackdrop />
+                  <SelectContent>
+                    <SelectDragIndicatorWrapper>
+                      <SelectDragIndicator />
+                    </SelectDragIndicatorWrapper>
+                    {packages.map((pkg) => (
+                      <SelectItem key={pkg.id} label={pkg.name} value={pkg.name} />
+                    ))}
+                  </SelectContent>
+                </SelectPortal>
+              </Select>
+              <Input variant="outline" size="md">
+                <InputField
+                  placeholder="Phone"
+                  value={form.phone}
+                  onChangeText={(text) => handleChange("phone", text)}
+                  keyboardType="phone-pad"
+                />
+              </Input>
+              <Input variant="outline" size="md">
+                <InputField
+                  placeholder="Total Spending"
+                  value={form.total_spending}
+                  onChangeText={(text) => handleChange("total_spending", text)}
+                  keyboardType="numeric"
+                />
+              </Input>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                <Button onPress={() => setIsFormOpen(false)} action="secondary" variant="outline" className="flex-1">
+                  <ButtonText>Batal</ButtonText>
+                </Button>
+                <Button onPress={async () => { await handleSubmit(); setIsFormOpen(false); }} action="primary" variant="solid" className="flex-1">
+                  <ButtonText>Simpan</ButtonText>
+                </Button>
+              </View>
             </View>
           </View>
         </View>

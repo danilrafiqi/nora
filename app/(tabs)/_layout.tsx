@@ -40,6 +40,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="packages"
+        options={{
+          title: 'Packages',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="tag.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="users"
+        options={{
+          title: 'Users',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="qrcode"
         options={{
           title: 'QR Code',

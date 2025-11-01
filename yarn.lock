@@ -5417,10 +5417,10 @@ expo-manifests@~0.16.6:
     "@expo/config" "~11.0.12"
     expo-json-utils "~0.15.0"
 
-expo-media-library@~16.0.6:
-  version "18.3.0-canary-20251031-b135dff"
-  resolved "https://registry.yarnpkg.com/expo-media-library/-/expo-media-library-18.3.0-canary-20251031-b135dff.tgz#fa49c3731a4ab7071010d44a92389c5c99e858b4"
-  integrity sha512-eQPzuWgRY1hwbgpl9xSgfs42eyRK789j5d4hrdFyvndeUtwa4wsYGeBeHtFcCTe0pZNrjfPzxqeapQcx79OsUw==
+expo-media-library@~17.1.7:
+  version "17.1.7"
+  resolved "https://registry.yarnpkg.com/expo-media-library/-/expo-media-library-17.1.7.tgz#71ed3d2d246d33410d6aecc335098a23519bd890"
+  integrity sha512-hLCoMvlhjtt+iYxPe71P1F6t06mYGysuNOfjQzDbbf64PCkglCZJYmywPyUSV1V5Hu9DhRj//gEg+Ki+7VWXog==
 
 expo-modules-autolinking@2.1.14:
   version "2.1.14"

@@ -11,7 +11,7 @@ export default function LoginScreen() {
 
   React.useEffect(() => {
     if (!loading && user) {
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/transaction');
     }
   }, [user, loading]);
 

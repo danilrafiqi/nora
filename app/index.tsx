@@ -5,10 +5,10 @@ import { VStack } from "@/components/ui/vstack";
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
+  // Alert, // Commented - not used currently
   Dimensions,
   Image,
-  Linking,
+  // Linking, // Commented - not used currently
   Pressable,
   ScrollView,
   TouchableOpacity,
@@ -64,7 +64,8 @@ const services = [
   },
 ];
 
-// Frame catalog categories
+// Frame catalog categories - commented out since section is disabled
+/*
 const frameCategories = [
   {
     id: "selfie_time",
@@ -101,6 +102,7 @@ const frameCategories = [
     ],
   },
 ];
+*/
 
 // Gallery images
 const galleryImages = [
@@ -114,27 +116,27 @@ const galleryImages = [
   "https://images.unsplash.com/photo-1493863641943-9b67192f852b?w=600&h=600&fit=crop",
 ];
 
-// Blog posts
-const blogPosts = [
-  {
-    id: "1",
-    date: "15 Jan 2024",
-    title: "Tips Foto Aesthetic di Nora Studio",
-    snippet: "Pelajari cara mendapatkan hasil foto yang aesthetic dengan tips dari tim professional kami...",
-  },
-  {
-    id: "2",
-    date: "10 Jan 2024",
-    title: "Frame Catalog Terbaru untuk Tahun 2024",
-    snippet: "Rasakan pengalaman foto yang lebih seru dengan frame catalog terbaru dari Nora Studio...",
-  },
-  {
-    id: "3",
-    date: "5 Jan 2024",
-    title: "Promo Spesial Bulan Januari",
-    snippet: "Dapatkan diskon hingga 30% untuk semua paket foto di bulan Januari ini. Limited time only!",
-  },
-];
+// Blog posts - commented out since section is disabled
+// const blogPosts = [
+//   {
+//     id: "1",
+//     date: "15 Jan 2024",
+//     title: "Tips Foto Aesthetic di Nora Studio",
+//     snippet: "Pelajari cara mendapatkan hasil foto yang aesthetic dengan tips dari tim professional kami...",
+//   },
+//   {
+//     id: "2",
+//     date: "10 Jan 2024",
+//     title: "Frame Catalog Terbaru untuk Tahun 2024",
+//     snippet: "Rasakan pengalaman foto yang lebih seru dengan frame catalog terbaru dari Nora Studio...",
+//   },
+//   {
+//     id: "3",
+//     date: "5 Jan 2024",
+//     title: "Promo Spesial Bulan Januari",
+//     snippet: "Dapatkan diskon hingga 30% untuk semua paket foto di bulan Januari ini. Limited time only!",
+//   },
+// ];
 
 // Video thumbnails
 const videos = [
@@ -146,50 +148,30 @@ const videos = [
 
 export default function HomePage() {
   const router = useRouter();
-  const [activeFrameTab, setActiveFrameTab] = useState("selfie_time");
+  // const [activeFrameTab, setActiveFrameTab] = useState("selfie_time"); // Commented - Frame Catalog section disabled
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleOpenLink = async (url: string) => {
-    try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) {
-        await Linking.openURL(url);
-      }
-    } catch {
-      Alert.alert("Error", "Gagal membuka link");
-    }
-  };
+  // const handleOpenLink = async (url: string) => { // Commented - not used currently
+  //   try {
+  //     const canOpen = await Linking.canOpenURL(url);
+  //     if (canOpen) {
+  //       await Linking.openURL(url);
+  //     }
+  //   } catch {
+  //     Alert.alert("Error", "Gagal membuka link");
+  //   }
+  // };
 
-  const activeFrames = frameCategories.find(cat => cat.id === activeFrameTab)?.frames || [];
+  // const activeFrames = frameCategories.find(cat => cat.id === activeFrameTab)?.frames || []; // Commented - Frame Catalog section disabled
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Navbar - Fixed Top */}
-      <View
-        style={{
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 50,
-          width: '100%',
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 5,
-        }}
-      >
+      <View className="px-4 py-3 flex-row justify-between items-center absolute top-0 left-0 right-0 z-50 w-full bg-white/95 shadow-md">
         {/* Logo */}
-        <Text className="text-2xl font-bold" style={{ color: '#FF6B9D' }}>
+        <Text className="text-2xl font-bold text-[#FF6B9D]">
           📸 Nora Studio
         </Text>
 
@@ -221,19 +203,7 @@ export default function HomePage() {
 
       {/* Mobile Menu Dropdown */}
       {isMobile && mobileMenuOpen && (
-        <View
-          className="bg-white shadow-lg"
-          style={{
-            position: 'absolute',
-            top: 60,
-            left: 0,
-            right: 0,
-            zIndex: 40,
-            padding: 16,
-            flexDirection: 'column',
-            gap: 12,
-          }}
-        >
+        <View className="bg-white shadow-lg absolute top-[60px] left-0 right-0 z-40 p-4 flex-col gap-3">
           <Pressable onPress={() => setMobileMenuOpen(false)}><Text className="text-base">About Us</Text></Pressable>
           <Pressable onPress={() => setMobileMenuOpen(false)}><Text className="text-base">Price List</Text></Pressable>
           <Pressable onPress={() => setMobileMenuOpen(false)}><Text className="text-base">Download App</Text></Pressable>
@@ -248,53 +218,31 @@ export default function HomePage() {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
-        <View
-          style={{
-            width: '100%',
-            height: 500,
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: '#FFE5F0',
-            position: 'relative',
-          }}
-        >
+        <View className="w-full h-[500px] justify-center items-center bg-[#FFE5F0] relative">
           {/* Background Image */}
           <Image
             source={{ uri: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1920&h=1080&fit=crop" }}
-            style={{
-              position: 'absolute',
-              width: '100%',
-              height: '100%',
-              opacity: 0.3,
-            }}
+            className="absolute w-full h-full opacity-30"
             resizeMode="cover"
           />
 
           {/* Hero Content */}
-          <VStack space="lg" className="items-center" style={{ paddingHorizontal: 20, zIndex: 10 }}>
-            <Text
-              className="text-5xl font-bold text-center"
-              style={{ color: '#FF6B9D', fontSize: isMobile ? 32 : 48 }}
-            >
+          <VStack space="lg" className="items-center px-5 z-10">
+            <Text className={`${isMobile ? 'text-3xl' : 'text-5xl'} font-bold text-center text-[#FF6B9D]`}>
               Capture Your Best Moment
             </Text>
 
-            <Text
-              className="text-xl text-center"
-              style={{ color: '#666', fontSize: isMobile ? 16 : 20 }}
-            >
+            <Text className={`${isMobile ? 'text-base' : 'text-xl'} text-center text-[#666]`}>
               Booth aesthetic dengan vibes kekinian
             </Text>
 
-            <View
-              style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}
-            >
+            <View className="flex-row gap-3 flex-wrap justify-center">
               <Button
                 onPress={() => { }}
                 action="primary"
                 variant="solid"
                 size="lg"
-                style={{ backgroundColor: '#FF6B9D' }}
+                className="bg-[#FF6B9D]"
               >
                 <ButtonText>Book Now</ButtonText>
               </Button>
@@ -303,58 +251,40 @@ export default function HomePage() {
                 action="secondary"
                 variant="outline"
                 size="lg"
-                style={{ borderColor: '#FF6B9D' }}
+                className="border-[#FF6B9D]"
               >
-                <ButtonText style={{ color: '#FF6B9D' }}>Download App</ButtonText>
+                <ButtonText className="text-[#FF6B9D]">Download App</ButtonText>
               </Button>
             </View>
           </VStack>
         </View>
 
         {/* Our Services Section */}
-        <View className="py-12 px-6" style={{ backgroundColor: '#FFFFFF' }}>
+        <View className="py-12 px-6 bg-white">
           <VStack space="lg">
-            <Text className="text-3xl font-bold text-center" style={{ color: '#333' }}>
+            <Text className="text-3xl font-bold text-center text-[#333]">
               Our Services
             </Text>
 
             {/* Services Grid */}
-            <View
-              style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                gap: 20,
-              }}
-            >
+            <View className="flex-row flex-wrap justify-center gap-5">
               {services.map((service, index) => (
                 <TouchableOpacity
                   key={service.id}
                   activeOpacity={0.8}
-                  style={{
-                    width: isMobile ? '100%' : '30%',
-                    maxWidth: 350,
-                    backgroundColor: '#FFF',
-                    borderRadius: 16,
-                    padding: 20,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    elevation: 4,
-                  }}
+                  className={`${isMobile ? 'w-full' : 'w-[30%]'} max-w-[350px] bg-white rounded-2xl p-5 shadow-lg`}
                 >
                   <VStack space="md" className="items-center">
                     <Text className="text-4xl">{service.icon}</Text>
                     <Image
                       source={{ uri: service.image }}
-                      style={{ width: '100%', height: 180, borderRadius: 12, marginVertical: 12 }}
+                      className="w-full h-[180px] rounded-xl my-3"
                       resizeMode="cover"
                     />
-                    <Text className="text-xl font-semibold text-center" style={{ color: '#333' }}>
+                    <Text className="text-xl font-semibold text-center text-[#333]">
                       {service.name}
                     </Text>
-                    <Text className="text-sm text-center" style={{ color: '#666' }}>
+                    <Text className="text-sm text-center text-[#666]">
                       {service.description}
                     </Text>
                   </VStack>
@@ -444,40 +374,28 @@ export default function HomePage() {
         </View> */}
 
         {/* Gallery / Inspiration Section */}
-        <View className="py-12 px-6" style={{ backgroundColor: '#FFFFFF' }}>
+        <View className="py-12 px-6 bg-white">
           <VStack space="lg">
             <VStack space="sm" className="items-center">
-              <Text className="text-3xl font-bold" style={{ color: '#333' }}>
+              <Text className="text-3xl font-bold text-[#333]">
                 Temukan Inspirasi Gayamu
               </Text>
-              <Text className="text-base text-center" style={{ color: '#666' }}>
+              <Text className="text-base text-center text-[#666]">
                 Galeri booth aesthetic dengan vibes kekinian
               </Text>
             </VStack>
 
             {/* Masonry Grid */}
-            <View
-              style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-                gap: 8,
-                justifyContent: 'center',
-              }}
-            >
+            <View className="flex-row flex-wrap gap-2 justify-center">
               {galleryImages.map((img, index) => (
                 <TouchableOpacity
                   key={index}
                   activeOpacity={0.9}
-                  style={{
-                    width: isMobile ? '48%' : index % 3 === 0 ? '32%' : '31%',
-                    marginBottom: 8,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                  }}
+                  className={`${isMobile ? 'w-[48%]' : index % 3 === 0 ? 'w-[32%]' : 'w-[31%]'} mb-2 rounded-xl overflow-hidden`}
                 >
                   <Image
                     source={{ uri: img }}
-                    style={{ width: '100%', height: index % 2 === 0 ? 300 : 250 }}
+                    className={`w-full ${index % 2 === 0 ? 'h-[300px]' : 'h-[250px]'}`}
                     resizeMode="cover"
                   />
                 </TouchableOpacity>
@@ -490,9 +408,9 @@ export default function HomePage() {
                 action="secondary"
                 variant="outline"
                 size="md"
-                style={{ borderColor: '#FF6B9D' }}
+                className="border-[#FF6B9D]"
               >
-                <ButtonText style={{ color: '#FF6B9D' }}>Lihat Inspirasi Lainnya</ButtonText>
+                <ButtonText className="text-[#FF6B9D]">Lihat Inspirasi Lainnya</ButtonText>
               </Button>
             </View>
           </VStack>
@@ -552,54 +470,29 @@ export default function HomePage() {
         </View> */}
 
         {/* Videos Section */}
-        <View className="py-12 px-6" style={{ backgroundColor: '#FFFFFF' }}>
+        <View className="py-12 px-6 bg-white">
           <VStack space="lg">
-            <Text className="text-3xl font-bold text-center" style={{ color: '#333' }}>
+            <Text className="text-3xl font-bold text-center text-[#333]">
               Our Videos
             </Text>
 
-            <View
-              style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                gap: 16,
-              }}
-            >
+            <View className="flex-row flex-wrap justify-center gap-4">
               {videos.map((video) => (
                 <TouchableOpacity
                   key={video.id}
                   activeOpacity={0.8}
-                  style={{
-                    width: isMobile ? '45%' : '22%',
-                    maxWidth: 280,
-                    position: 'relative',
-                  }}
+                  className={`${isMobile ? 'w-[45%]' : 'w-[22%]'} max-w-[280px] relative`}
                 >
                   <Image
                     source={{ uri: video.thumbnail }}
-                    style={{ width: '100%', height: 280, borderRadius: 12 }}
+                    className="w-full h-[280px] rounded-xl"
                     resizeMode="cover"
                   />
                   {/* Play Icon Overlay */}
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      marginLeft: -25,
-                      marginTop: -25,
-                      width: 50,
-                      height: 50,
-                      borderRadius: 25,
-                      backgroundColor: 'rgba(255, 107, 157, 0.9)',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Text style={{ color: '#FFF', fontSize: 20 }}>▶</Text>
+                  <View className="absolute top-1/2 left-1/2 -ml-[25px] -mt-[25px] w-[50px] h-[50px] rounded-full bg-[rgba(255,107,157,0.9)] justify-center items-center">
+                    <Text className="text-white text-xl">▶</Text>
                   </View>
-                  <Text className="text-sm font-semibold text-center mt-2" style={{ color: '#333' }}>
+                  <Text className="text-sm font-semibold text-center mt-2 text-[#333]">
                     {video.title}
                   </Text>
                 </TouchableOpacity>
@@ -609,96 +502,64 @@ export default function HomePage() {
         </View>
 
         {/* Footer */}
-        <View className="py-12 px-6" style={{ backgroundColor: '#333', paddingVertical: 40 }}>
+        <View className="py-10 px-6 bg-[#333]">
           <VStack space="lg">
             {/* Top Footer */}
-            <View
-              style={{
-                flexDirection: isMobile ? 'column' : 'row',
-                justifyContent: 'space-between',
-                alignItems: isMobile ? 'flex-start' : 'flex-start',
-                gap: 40,
-                flexWrap: 'wrap',
-              }}
-            >
+            <View className={`${isMobile ? 'flex-col' : 'flex-row'} justify-between items-start gap-10 flex-wrap`}>
               {/* Brand */}
-              <VStack space="md" style={{ flex: isMobile ? 1 : 0.3 }}>
-                <Text className="text-2xl font-bold" style={{ color: '#FF6B9D' }}>
+              <VStack space="md" className={isMobile ? 'flex-1' : 'flex-[0.3]'}>
+                <Text className="text-2xl font-bold text-[#FF6B9D]">
                   📸 Nora Studio
                 </Text>
-                <Text className="text-sm" style={{ color: '#999' }}>
+                <Text className="text-sm text-[#999]">
                   Creative Photography Studio dengan booth aesthetic dan vibes kekinian
                 </Text>
               </VStack>
 
               {/* Links */}
-              <VStack space="sm" style={{ flex: isMobile ? 1 : 0.2 }}>
-                <Text className="text-base font-semibold" style={{ color: '#FFF', marginBottom: 8 }}>
+              <VStack space="sm" className={isMobile ? 'flex-1' : 'flex-[0.2]'}>
+                <Text className="text-base font-semibold text-white mb-2">
                   Quick Links
                 </Text>
                 <Pressable onPress={() => { }}>
-                  <Text className="text-sm" style={{ color: '#CCC', marginBottom: 4 }}>About Us</Text>
+                  <Text className="text-sm text-[#CCC] mb-1">About Us</Text>
                 </Pressable>
                 <Pressable onPress={() => { }}>
-                  <Text className="text-sm" style={{ color: '#CCC', marginBottom: 4 }}>Outlets</Text>
+                  <Text className="text-sm text-[#CCC] mb-1">Outlets</Text>
                 </Pressable>
                 <Pressable onPress={() => { }}>
-                  <Text className="text-sm" style={{ color: '#CCC', marginBottom: 4 }}>Contact</Text>
+                  <Text className="text-sm text-[#CCC] mb-1">Contact</Text>
                 </Pressable>
                 <Pressable onPress={() => { }}>
-                  <Text className="text-sm" style={{ color: '#CCC', marginBottom: 4 }}>Blog</Text>
+                  <Text className="text-sm text-[#CCC] mb-1">Blog</Text>
                 </Pressable>
               </VStack>
 
               {/* App Download */}
-              <VStack space="sm" style={{ flex: isMobile ? 1 : 0.3 }}>
-                <Text className="text-base font-semibold" style={{ color: '#FFF', marginBottom: 8 }}>
+              <VStack space="sm" className={isMobile ? 'flex-1' : 'flex-[0.3]'}>
+                <Text className="text-base font-semibold text-white mb-2">
                   Download App
                 </Text>
                 <Pressable
                   onPress={() => { }}
-                  style={{
-                    backgroundColor: '#000',
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderRadius: 8,
-                    marginBottom: 8,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
+                  className="bg-black px-4 py-3 rounded-lg mb-2 flex-row items-center gap-2"
                 >
-                  <Text style={{ color: '#FFF' }}>📱</Text>
-                  <Text style={{ color: '#FFF', fontWeight: '600' }}>Play Store</Text>
+                  <Text className="text-white">📱</Text>
+                  <Text className="text-white font-semibold">Play Store</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => { }}
-                  style={{
-                    backgroundColor: '#000',
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderRadius: 8,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
+                  className="bg-black px-4 py-3 rounded-lg flex-row items-center gap-2"
                 >
-                  <Text style={{ color: '#FFF' }}>🍎</Text>
-                  <Text style={{ color: '#FFF', fontWeight: '600' }}>App Store</Text>
+                  <Text className="text-white">🍎</Text>
+                  <Text className="text-white font-semibold">App Store</Text>
                 </Pressable>
               </VStack>
             </View>
 
             {/* Copyright */}
-            <View
-              style={{
-                borderTopWidth: 1,
-                borderTopColor: '#555',
-                paddingTop: 20,
-                marginTop: 20,
-              }}
-            >
-              <Text className="text-sm text-center" style={{ color: '#999' }}>
+            <View className="border-t border-[#555] pt-5 mt-5">
+              <Text className="text-sm text-center text-[#999]">
                 © {new Date().getFullYear()} Nora Studio. All rights reserved.
               </Text>
             </View>

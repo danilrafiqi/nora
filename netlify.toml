@@ -1,7 +1,7 @@
 # Build configuration untuk Expo Router di Netlify
 [build]
   # Install dependencies dan build web version
-  command = "npm install && npx expo export --platform web"
+  command = "expo export -p web"
   # Publish directory - output dari expo export dengan Metro bundler
   publish = "dist"
 

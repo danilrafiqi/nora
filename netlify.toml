@@ -1,10 +1,9 @@
 # Build configuration untuk Expo Router di Netlify
 [build]
-  # Command untuk build web version
-  command = "npx expo export:web"
-  # Publish directory - sesuaikan dengan output Expo Anda
-  # Biasanya: .output/static, dist, atau web-build
-  publish = ".output/static"
+  # Install dependencies dan build web version
+  command = "npm install && npx expo export --platform web"
+  # Publish directory - output dari expo export dengan Metro bundler
+  publish = "dist"
 
 # Redirect rules untuk SPA routing
 # Semua route akan di-redirect ke index.html agar client-side routing bekerja

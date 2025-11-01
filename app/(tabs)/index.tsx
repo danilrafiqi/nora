@@ -1,5 +1,5 @@
 import { db } from "@/services/firebase";
-import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, limit as fbLimit, startAfter } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { Linking, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -37,6 +37,10 @@ import { Button, ButtonText } from "@/components/ui/button";
 export default function TransactionScreen() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [lastVisible, setLastVisible] = useState<any>(null);
+  const pageSize = 20;
 
   const [form, setForm] = useState({
     link: "",
@@ -48,15 +52,52 @@ export default function TransactionScreen() {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // ambil transaction
+  // ambil transaction (paginated)
   const loadTransactions = async () => {
-    const q = query(collection(db, "transaction"), orderBy("created_at", "desc"));
-    const querySnapshot = await getDocs(q);
-    const items = querySnapshot.docs.map((docSnap) => ({
-      id: docSnap.id,
-      ...docSnap.data(),
-    }));
-    setTransactions(items);
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      const q = query(
+        collection(db, "transaction"),
+        orderBy("created_at", "desc"),
+        fbLimit(pageSize)
+      );
+      const querySnapshot = await getDocs(q);
+      const docs = querySnapshot.docs;
+      const items = docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
+      setTransactions(items);
+      setLastVisible(docs[docs.length - 1] || null);
+      setHasMore(docs.length === pageSize);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMoreTransactions = async () => {
+    if (isLoading || !hasMore || !lastVisible) return;
+    setIsLoading(true);
+    try {
+      const q = query(
+        collection(db, "transaction"),
+        orderBy("created_at", "desc"),
+        startAfter(lastVisible),
+        fbLimit(pageSize)
+      );
+      const querySnapshot = await getDocs(q);
+      const docs = querySnapshot.docs;
+      const items = docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
+      setTransactions((prev) => [...prev, ...items]);
+      setLastVisible(docs[docs.length - 1] || null);
+      setHasMore(docs.length === pageSize);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // ambil package
@@ -91,14 +132,22 @@ export default function TransactionScreen() {
     });
 
     setForm({ link: "", name: "", package: "", phone: "", total_spending: "" });
-    loadTransactions();
+    // reset pagination and reload first page
+    setLastVisible(null);
+    setHasMore(true);
+    setTransactions([]);
+    await loadTransactions();
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
     await deleteDoc(doc(db, "transaction", deleteId));
     setDeleteId(null);
-    loadTransactions();
+    // reload from first page to ensure consistency
+    setLastVisible(null);
+    setHasMore(true);
+    setTransactions([]);
+    await loadTransactions();
   };
 
   const templates = [
@@ -377,6 +426,18 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`
                   ))}
                 </TableBody>
               </Table>
+              {/* Load more control under the table to keep UI intact */}
+              <View style={{ paddingVertical: 12 }}>
+                {hasMore ? (
+                  <Button onPress={loadMoreTransactions} action="secondary" variant="outline" disabled={isLoading}>
+                    <ButtonText>{isLoading ? "Loading..." : "Load More"}</ButtonText>
+                  </Button>
+                ) : (
+                  transactions.length > 0 ? (
+                    <Text style={{ textAlign: "center", color: "#666" }}>Semua data sudah ditampilkan</Text>
+                  ) : null
+                )}
+              </View>
             </ScrollView>
           </ScrollView>
         </View>

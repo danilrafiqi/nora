@@ -262,17 +262,17 @@ export default function HomePage() {
         {/* Our Services Section */}
         <View className="py-12 px-6 bg-white">
           <VStack space="lg">
-            <Text className="text-3xl font-bold text-center text-[#333]">
+            <Text className="text-3xl font-bold text-center text-typography-900">
               Our Services
             </Text>
 
             {/* Services Grid */}
-            <View className="flex-row flex-wrap justify-center gap-5">
+            <View className="flex-row flex-wrap justify-center gap-4">
               {services.map((service, index) => (
                 <TouchableOpacity
                   key={service.id}
                   activeOpacity={0.8}
-                  className={`${isMobile ? 'w-full' : 'w-[30%]'} max-w-[350px] bg-white rounded-2xl p-5 shadow-lg`}
+                  className={`${isMobile ? 'w-full' : 'w-[30%]'} max-w-[350px] bg-white rounded-xl p-5 shadow-md`}
                 >
                   <VStack space="md" className="items-center">
                     <Text className="text-4xl">{service.icon}</Text>
@@ -281,10 +281,10 @@ export default function HomePage() {
                       className="w-full h-[180px] rounded-xl my-3"
                       resizeMode="cover"
                     />
-                    <Text className="text-xl font-semibold text-center text-[#333]">
+                    <Text className="text-xl font-semibold text-center text-typography-900">
                       {service.name}
                     </Text>
-                    <Text className="text-sm text-center text-[#666]">
+                    <Text className="text-sm text-center text-typography-600">
                       {service.description}
                     </Text>
                   </VStack>
@@ -377,21 +377,21 @@ export default function HomePage() {
         <View className="py-12 px-6 bg-white">
           <VStack space="lg">
             <VStack space="sm" className="items-center">
-              <Text className="text-3xl font-bold text-[#333]">
+              <Text className="text-3xl font-bold text-center text-typography-900">
                 Temukan Inspirasi Gayamu
               </Text>
-              <Text className="text-base text-center text-[#666]">
+              <Text className="text-sm text-center text-typography-600">
                 Galeri booth aesthetic dengan vibes kekinian
               </Text>
             </VStack>
 
             {/* Masonry Grid */}
-            <View className="flex-row flex-wrap gap-2 justify-center">
+            <View className="flex-row flex-wrap justify-center gap-4">
               {galleryImages.map((img, index) => (
                 <TouchableOpacity
                   key={index}
                   activeOpacity={0.9}
-                  className={`${isMobile ? 'w-[48%]' : index % 3 === 0 ? 'w-[32%]' : 'w-[31%]'} mb-2 rounded-xl overflow-hidden`}
+                  className={`${isMobile ? 'w-[48%]' : index % 3 === 0 ? 'w-[32%]' : 'w-[31%]'} rounded-xl overflow-hidden shadow-md`}
                 >
                   <Image
                     source={{ uri: img }}
@@ -472,7 +472,7 @@ export default function HomePage() {
         {/* Videos Section */}
         <View className="py-12 px-6 bg-white">
           <VStack space="lg">
-            <Text className="text-3xl font-bold text-center text-[#333]">
+            <Text className="text-3xl font-bold text-center text-typography-900">
               Our Videos
             </Text>
 
@@ -485,14 +485,14 @@ export default function HomePage() {
                 >
                   <Image
                     source={{ uri: video.thumbnail }}
-                    className="w-full h-[280px] rounded-xl"
+                    className="w-full h-[280px] rounded-xl shadow-md"
                     resizeMode="cover"
                   />
                   {/* Play Icon Overlay */}
                   <View className="absolute top-1/2 left-1/2 -ml-[25px] -mt-[25px] w-[50px] h-[50px] rounded-full bg-[rgba(255,107,157,0.9)] justify-center items-center">
                     <Text className="text-white text-xl">▶</Text>
                   </View>
-                  <Text className="text-sm font-semibold text-center mt-2 text-[#333]">
+                  <Text className="text-sm font-semibold text-center mt-2 text-typography-900">
                     {video.title}
                   </Text>
                 </TouchableOpacity>
@@ -502,7 +502,7 @@ export default function HomePage() {
         </View>
 
         {/* Footer */}
-        <View className="py-10 px-6 bg-[#333]">
+        <View className="py-12 px-6 bg-[#333]">
           <VStack space="lg">
             {/* Top Footer */}
             <View className={`${isMobile ? 'flex-col' : 'flex-row'} justify-between items-start gap-10 flex-wrap`}>
@@ -511,7 +511,7 @@ export default function HomePage() {
                 <Text className="text-2xl font-bold text-[#FF6B9D]">
                   📸 Nora Studio
                 </Text>
-                <Text className="text-sm text-[#999]">
+                <Text className="text-sm text-typography-500">
                   Creative Photography Studio dengan booth aesthetic dan vibes kekinian
                 </Text>
               </VStack>
@@ -522,16 +522,16 @@ export default function HomePage() {
                   Quick Links
                 </Text>
                 <Pressable onPress={() => { }}>
-                  <Text className="text-sm text-[#CCC] mb-1">About Us</Text>
+                  <Text className="text-sm text-typography-400 mb-1">About Us</Text>
                 </Pressable>
                 <Pressable onPress={() => { }}>
-                  <Text className="text-sm text-[#CCC] mb-1">Outlets</Text>
+                  <Text className="text-sm text-typography-400 mb-1">Outlets</Text>
                 </Pressable>
                 <Pressable onPress={() => { }}>
-                  <Text className="text-sm text-[#CCC] mb-1">Contact</Text>
+                  <Text className="text-sm text-typography-400 mb-1">Contact</Text>
                 </Pressable>
                 <Pressable onPress={() => { }}>
-                  <Text className="text-sm text-[#CCC] mb-1">Blog</Text>
+                  <Text className="text-sm text-typography-400 mb-1">Blog</Text>
                 </Pressable>
               </VStack>
 
@@ -542,14 +542,14 @@ export default function HomePage() {
                 </Text>
                 <Pressable
                   onPress={() => { }}
-                  className="bg-black px-4 py-3 rounded-lg mb-2 flex-row items-center gap-2"
+                  className="bg-black px-4 py-3 rounded-xl mb-2 flex-row items-center gap-2"
                 >
                   <Text className="text-white">📱</Text>
                   <Text className="text-white font-semibold">Play Store</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => { }}
-                  className="bg-black px-4 py-3 rounded-lg flex-row items-center gap-2"
+                  className="bg-black px-4 py-3 rounded-xl flex-row items-center gap-2"
                 >
                   <Text className="text-white">🍎</Text>
                   <Text className="text-white font-semibold">App Store</Text>
@@ -558,8 +558,8 @@ export default function HomePage() {
             </View>
 
             {/* Copyright */}
-            <View className="border-t border-[#555] pt-5 mt-5">
-              <Text className="text-sm text-center text-[#999]">
+            <View className="border-t border-typography-700 pt-5 mt-5">
+              <Text className="text-sm text-center text-typography-500">
                 © {new Date().getFullYear()} Nora Studio. All rights reserved.
               </Text>
             </View>

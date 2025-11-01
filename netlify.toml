@@ -1,0 +1,22 @@
+# Build configuration untuk Expo Router di Netlify
+[build]
+  # Command untuk build web version
+  command = "npx expo export:web"
+  # Publish directory - sesuaikan dengan output Expo Anda
+  # Biasanya: .output/static, dist, atau web-build
+  publish = ".output/static"
+
+# Redirect rules untuk SPA routing
+# Semua route akan di-redirect ke index.html agar client-side routing bekerja
+[[redirects]]
+  from = "/photos/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+

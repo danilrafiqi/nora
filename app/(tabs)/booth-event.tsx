@@ -1,3 +1,7 @@
+/**
+ * Booth Event / Bio Link Page - Bitcoin Energy Style
+ */
+
 import {
   Avatar,
   AvatarFallbackText,
@@ -36,8 +40,8 @@ export default function BioLink() {
           </Avatar>
 
           {/* Nama & Deskripsi */}
-          <Text className="text-xl font-bold">Nora Studio</Text>
-          <Text className="text-sm text-typography-500">
+          <Text className="text-xl font-heading font-bold text-typography-900">Nora Studio</Text>
+          <Text className="text-sm font-body text-typography-500">
             Creative Photography Studio 📸
           </Text>
 
@@ -46,11 +50,13 @@ export default function BioLink() {
             {links.map((link, idx) => (
               <Button
                 key={idx}
-                className="rounded-xl"
-                action="primary"
                 onPress={() => handleOpenLink(link.url)}
+                action="primary"
+                variant="solid"
+                size="md"
+                className="w-full bg-accent-orange data-[hover=true]:bg-accent-orangeDark data-[active=true]:bg-accent-orangeDark shadow-medium"
               >
-                <ButtonText>{link.title}</ButtonText>
+                <ButtonText className="text-white">{link.title}</ButtonText>
               </Button>
             ))}
           </VStack>

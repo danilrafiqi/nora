@@ -10,6 +10,7 @@
  * - Backgrounds: Alternating cream and white
  */
 
+import { Button, ButtonText } from "@/components/ui/button";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
@@ -201,18 +202,24 @@ export default function HomePage() {
             </Text>
 
             <View className="flex-row gap-4 flex-wrap justify-center mt-4">
-              <Pressable
+              <Button
                 onPress={() => { }}
-                className="bg-accent-orange px-6 py-3 rounded shadow-medium active:bg-accent-orangeDark min-w-[140px]"
+                action="primary"
+                variant="solid"
+                size="lg"
+                className="bg-accent-orange data-[hover=true]:bg-accent-orangeDark data-[active=true]:bg-accent-orangeDark shadow-medium min-w-[140px]"
               >
-                <Text className="text-white font-body font-semibold text-base text-center">Book Now</Text>
-              </Pressable>
-              <Pressable
+                <ButtonText className="text-white">Book Now</ButtonText>
+              </Button>
+              <Button
                 onPress={() => { }}
-                className="border-accent-orange border-2 bg-white px-6 py-3 rounded active:bg-accent-orange/10 min-w-[140px]"
+                action="primary"
+                variant="outline"
+                size="lg"
+                className="border-accent-orange border-2 bg-white data-[hover=true]:bg-accent-orange/10 data-[active=true]:bg-accent-orange/10 min-w-[140px]"
               >
-                <Text className="text-accent-orange font-body font-semibold text-base text-center">Download App</Text>
-              </Pressable>
+                <ButtonText className="text-accent-orange">Download App</ButtonText>
+              </Button>
             </View>
           </VStack>
         </View>
@@ -297,12 +304,15 @@ export default function HomePage() {
             </View>
 
             <View className="items-center mt-6">
-              <Pressable
+              <Button
                 onPress={() => { }}
-                className="border-accent-orange border-2 bg-white px-5 py-2.5 rounded active:bg-accent-orange/10"
+                action="primary"
+                variant="outline"
+                size="md"
+                className="border-accent-orange border-2 bg-white data-[hover=true]:bg-accent-orange/10 data-[active=true]:bg-accent-orange/10"
               >
-                <Text className="text-accent-orange font-body font-semibold">Lihat Inspirasi Lainnya</Text>
-              </Pressable>
+                <ButtonText className="text-accent-orange">Lihat Inspirasi Lainnya</ButtonText>
+              </Button>
             </View>
           </VStack>
         </View>
@@ -371,18 +381,18 @@ export default function HomePage() {
                 <Text className="text-base font-body font-semibold text-white mb-3">
                   Quick Links
                 </Text>
-                <Pressable onPress={() => { }}>
-                  <Text className="text-sm font-body text-typography-400 mb-2">About Us</Text>
-                </Pressable>
-                <Pressable onPress={() => { }}>
-                  <Text className="text-sm font-body text-typography-400 mb-2">Outlets</Text>
-                </Pressable>
-                <Pressable onPress={() => { }}>
-                  <Text className="text-sm font-body text-typography-400 mb-2">Contact</Text>
-                </Pressable>
-                <Pressable onPress={() => { }}>
-                  <Text className="text-sm font-body text-typography-400 mb-2">Blog</Text>
-                </Pressable>
+                <Button onPress={() => { }} variant="link" size="sm" className="px-0">
+                  <ButtonText className="text-sm text-typography-400 mb-2">About Us</ButtonText>
+                </Button>
+                <Button onPress={() => { }} variant="link" size="sm" className="px-0">
+                  <ButtonText className="text-sm text-typography-400 mb-2">Outlets</ButtonText>
+                </Button>
+                <Button onPress={() => { }} variant="link" size="sm" className="px-0">
+                  <ButtonText className="text-sm text-typography-400 mb-2">Contact</ButtonText>
+                </Button>
+                <Button onPress={() => { }} variant="link" size="sm" className="px-0">
+                  <ButtonText className="text-sm text-typography-400 mb-2">Blog</ButtonText>
+                </Button>
               </VStack>
 
               {/* App Download */}
@@ -390,20 +400,26 @@ export default function HomePage() {
                 <Text className="text-base font-body font-semibold text-white mb-3">
                   Download App
                 </Text>
-                <Pressable
+                <Button
                   onPress={() => { }}
-                  className="bg-[#2A2A2A] px-5 py-3 rounded mb-2 flex-row items-center gap-2 active:bg-[#333333]"
+                  action="secondary"
+                  variant="solid"
+                  size="md"
+                  className="bg-[#2A2A2A] mb-2"
                 >
                   <Text className="text-white text-lg">📱</Text>
-                  <Text className="text-white font-body font-semibold">Play Store</Text>
-                </Pressable>
-                <Pressable
+                  <ButtonText className="text-white">Play Store</ButtonText>
+                </Button>
+                <Button
                   onPress={() => { }}
-                  className="bg-[#2A2A2A] px-5 py-3 rounded flex-row items-center gap-2 active:bg-[#333333]"
+                  action="secondary"
+                  variant="solid"
+                  size="md"
+                  className="bg-[#2A2A2A]"
                 >
                   <Text className="text-white text-lg">🍎</Text>
-                  <Text className="text-white font-body font-semibold">App Store</Text>
-                </Pressable>
+                  <ButtonText className="text-white">App Store</ButtonText>
+                </Button>
               </VStack>
             </View>
 

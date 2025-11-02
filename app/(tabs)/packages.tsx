@@ -1,3 +1,7 @@
+/**
+ * Packages Page - Bitcoin Energy Style
+ */
+
 import { db } from "@/services/firebase";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Input, InputField } from "@/components/ui/input";
@@ -62,25 +66,43 @@ export default function PackagesPage() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16 }}>
       <View style={{ gap: 12 }}>
-        <Text className="text-xl font-bold">Packages</Text>
-        <Button onPress={openCreate} action="primary" variant="solid">
-          <ButtonText>Tambah Paket</ButtonText>
+        <Text className="text-xl font-heading font-bold text-typography-900">Packages</Text>
+        <Button
+          onPress={openCreate}
+          action="primary"
+          variant="solid"
+          size="md"
+          className="bg-accent-orange data-[hover=true]:bg-accent-orangeDark data-[active=true]:bg-accent-orangeDark shadow-medium"
+        >
+          <ButtonText className="text-white">Tambah Paket</ButtonText>
         </Button>
 
         <View style={{ gap: 10 }}>
           {items.map((pkg) => (
-            <View key={pkg.id} style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 10, padding: 12, gap: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View>
-                <Text className="font-semibold">{pkg.name}</Text>
-                <Text>Rp {pkg.price.toLocaleString('id-ID')}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Button onPress={() => openEdit(pkg)} action="secondary" variant="outline">
-                  <ButtonText>Edit</ButtonText>
-                </Button>
-                <Button onPress={() => remove(pkg.id)} action="negative" variant="solid">
-                  <ButtonText>Hapus</ButtonText>
-                </Button>
+            <View key={pkg.id} className="bg-white p-4 rounded-lg border border-outline-200 shadow-medium">
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text className="font-heading font-semibold text-typography-900">{pkg.name}</Text>
+                  <Text className="font-body text-typography-600">Rp {pkg.price.toLocaleString('id-ID')}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Button
+                    onPress={() => openEdit(pkg)}
+                    action="secondary"
+                    variant="outline"
+                    size="sm"
+                  >
+                    <ButtonText className="text-xs">Edit</ButtonText>
+                  </Button>
+                  <Button
+                    onPress={() => remove(pkg.id)}
+                    action="negative"
+                    variant="solid"
+                    size="sm"
+                  >
+                    <ButtonText className="text-xs text-white">Hapus</ButtonText>
+                  </Button>
+                </View>
               </View>
             </View>
           ))}
@@ -88,21 +110,47 @@ export default function PackagesPage() {
       </View>
 
       <Modal visible={isOpen} transparent animationType="slide" onRequestClose={() => setIsOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ backgroundColor: 'white', padding: 20, borderRadius: 12, width: '90%', gap: 10 }}>
-            <Text className="text-lg font-bold">{editId ? 'Edit Paket' : 'Tambah Paket'}</Text>
-            <Input variant="outline" size="md">
-              <InputField placeholder="Nama paket" value={name} onChangeText={setName} />
+        <View className="flex-1 bg-black/50 justify-center items-center">
+          <View className="bg-white p-5 rounded-lg w-[90%] shadow-lg" style={{ gap: 10 }}>
+            <Text className="text-lg font-heading font-bold text-typography-900">
+              {editId ? 'Edit Paket' : 'Tambah Paket'}
+            </Text>
+            <Input variant="outline" size="md" className="bg-white rounded border-outline-300">
+              <InputField
+                placeholder="Nama paket"
+                value={name}
+                onChangeText={setName}
+                className="font-body"
+              />
             </Input>
-            <Input variant="outline" size="md">
-              <InputField placeholder="Harga" value={price} onChangeText={setPrice} keyboardType="numeric" />
+            <Input variant="outline" size="md" className="bg-white rounded border-outline-300">
+              <InputField
+                placeholder="Harga"
+                value={price}
+                onChangeText={setPrice}
+                keyboardType="numeric"
+                className="font-body"
+              />
             </Input>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <Button onPress={() => { setIsOpen(false); resetForm(); }} action="secondary" variant="outline" className="flex-1">
+              <Button
+                onPress={() => { setIsOpen(false); resetForm(); }}
+                action="secondary"
+                variant="outline"
+                size="md"
+                className="flex-1"
+              >
                 <ButtonText>Batal</ButtonText>
               </Button>
-              <Button onPress={save} action="primary" variant="solid" className="flex-1" disabled={!isValid}>
-                <ButtonText>Simpan</ButtonText>
+              <Button
+                onPress={save}
+                disabled={!isValid}
+                action="primary"
+                variant="solid"
+                size="md"
+                className={`flex-1 shadow-medium ${isValid ? 'bg-accent-orange data-[hover=true]:bg-accent-orangeDark data-[active=true]:bg-accent-orangeDark' : ''}`}
+              >
+                <ButtonText className="text-white">Simpan</ButtonText>
               </Button>
             </View>
           </View>
@@ -111,5 +159,3 @@ export default function PackagesPage() {
     </ScrollView>
   );
 }
-
-

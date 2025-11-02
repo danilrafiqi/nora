@@ -125,11 +125,11 @@ export default function ReportPage() {
         {reportCards.map((card, idx) => (
           <Box
             key={idx}
-            className="bg-background-100 p-4 rounded-xl shadow-sm"
+            className="bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium"
           >
             <HStack className="justify-between items-center">
-              <Text className="text-lg font-bold">{card.title}</Text>
-              <Text className="text-lg text-success-600 font-semibold">
+              <Text className="text-lg font-heading font-bold text-typography-900">{card.title}</Text>
+              <Text className="text-lg font-body text-success-600 font-semibold">
                 {formatCurrency(card.value)}
               </Text>
             </HStack>

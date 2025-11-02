@@ -46,41 +46,41 @@ export default function UsersPage() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16 }}>
       <View style={{ gap: 12 }}>
-        <Text className="text-xl font-bold">Manage Users</Text>
+        <Text className="text-xl font-heading font-bold text-typography-900">Manage Users</Text>
 
         {!hasSuperAdmin && (
-          <View style={{ backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#fbbf24', borderRadius: 8, padding: 12 }}>
-            <Text className="font-semibold text-yellow-800 mb-1">⚠️ Belum ada Super Admin</Text>
-            <Text className="text-yellow-700 text-sm">
+          <View className="bg-warning-100 border border-warning-300 rounded-lg p-4 shadow-sm">
+            <Text className="font-heading font-semibold text-warning-800 mb-1">⚠️ Belum ada Super Admin</Text>
+            <Text className="font-body text-warning-700 text-sm">
               Untuk set Super Admin pertama kali, buka Firestore Console dan tambahkan field role: &apos;super_admin&apos; pada document user Anda di collection &quot;users&quot;.
             </Text>
           </View>
         )}
 
         {!canEdit && (
-          <View style={{ backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12 }}>
-            <Text className="text-gray-700 text-sm">
+          <View className="bg-background-100 border border-outline-300 rounded-lg p-4 shadow-sm">
+            <Text className="font-body text-typography-700 text-sm">
               Anda tidak memiliki akses untuk mengubah role. Hanya Super Admin yang bisa mengelola role user.
             </Text>
           </View>
         )}
 
-        <Input variant="outline" size="md">
-          <InputField placeholder="Cari email/nama" value={filter} onChangeText={setFilter} />
+        <Input variant="outline" size="md" className="bg-white rounded border-outline-300">
+          <InputField placeholder="Cari email/nama" value={filter} onChangeText={setFilter} className="font-body" />
         </Input>
         <View style={{ gap: 10 }}>
           {filtered.map((u) => (
-            <View key={u.uid} style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 10, padding: 12, gap: 8 }}>
+            <View key={u.uid} className="bg-white border border-outline-200 rounded-lg p-4 shadow-medium" style={{ gap: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text className="font-semibold">{u.displayName || '-'} ({u.email || '-'})</Text>
+                <Text className="font-heading font-semibold text-typography-900">{u.displayName || '-'} ({u.email || '-'})</Text>
                 {u.uid === currentUser?.uid && (
-                  <Text className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Anda</Text>
+                  <Text className="text-xs font-body bg-info-100 text-info-800 px-2 py-1 rounded">Anda</Text>
                 )}
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Text>Role:</Text>
+                <Text className="font-body text-typography-700">Role:</Text>
                 <Select selectedValue={u.role ?? 'none'} onValueChange={(val) => canEdit ? updateRole(u.uid, val as any) : null}>
-                  <SelectTrigger variant="outline" size="md">
+                  <SelectTrigger variant="outline" size="md" className="rounded border-outline-300">
                     <SelectInput placeholder="Pilih Role" />
                   </SelectTrigger>
                   <SelectPortal>
@@ -95,7 +95,7 @@ export default function UsersPage() {
                     </SelectContent>
                   </SelectPortal>
                 </Select>
-                {!canEdit && <Text className="text-muted-500">(readonly)</Text>}
+                {!canEdit && <Text className="font-body text-typography-500">(readonly)</Text>}
               </View>
             </View>
           ))}

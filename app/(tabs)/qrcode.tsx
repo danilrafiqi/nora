@@ -111,8 +111,8 @@ export default function QRCodeGeneratorScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
       <View style={{ gap: 16 }}>
-        <Text className="text-xl font-bold">Generate QR Code</Text>
-        <Input variant="outline" size="md">
+        <Text className="text-xl font-heading font-bold text-typography-900">Generate QR Code</Text>
+        <Input variant="outline" size="md" className="bg-white rounded border-outline-300">
           <InputField
             placeholder="Paste atau ketik URL (contoh: https://example.com)"
             autoCapitalize="none"
@@ -122,27 +122,41 @@ export default function QRCodeGeneratorScreen() {
             keyboardType="url"
             returnKeyType="done"
             onSubmitEditing={handleGenerate}
+            className="font-body"
           />
         </Input>
 
-        <Button onPress={handleGenerate} action="primary" variant="solid" disabled={!url.trim()}>
-          <ButtonText>Buat QR</ButtonText>
+        <Button
+          onPress={handleGenerate}
+          action="primary"
+          variant="solid"
+          size="md"
+          disabled={!url.trim()}
+          className="bg-accent-orange data-[hover=true]:bg-accent-orangeDark data-[active=true]:bg-accent-orangeDark shadow-medium"
+        >
+          <ButtonText className="text-white">Buat QR</ButtonText>
         </Button>
 
         <View style={{ alignItems: "center", paddingVertical: 24 }}>
           {isValid ? (
             <View style={{ alignItems: "center", gap: 12 }}>
               <QRCode value={displayValue} size={240} getRef={(c) => (qrRef.current = c)} />
-              <Text className="text-center text-sm" selectable>
+              <Text className="text-center text-sm font-body text-typography-600" selectable>
                 {displayValue}
               </Text>
-              <Button onPress={handleSaveJpg} action="secondary" variant="outline" disabled={isSaving}>
+              <Button
+                onPress={handleSaveJpg}
+                action="secondary"
+                variant="outline"
+                size="md"
+                disabled={isSaving}
+              >
                 <ButtonText>{isSaving ? "Menyimpan..." : "Simpan JPG"}</ButtonText>
               </Button>
             </View>
           ) : (
-            <Text className="text-center text-muted-500">
-              Masukkan URL valid, lalu tekan "Buat QR".
+            <Text className="text-center font-body text-typography-500">
+              Masukkan URL valid, lalu tekan &quot;Buat QR&quot;.
             </Text>
           )}
         </View>

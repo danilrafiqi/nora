@@ -41,10 +41,23 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const EXPORT_WIDTH = 1200;  // 102mm @ 300 DPI
 const EXPORT_HEIGHT = 1800; // 152mm @ 300 DPI
 
-// Display canvas dengan 4R aspect ratio (2:3)
-const CANVAS_WIDTH = Math.min(SCREEN_WIDTH - 32, 400);
-const CANVAS_HEIGHT = (CANVAS_WIDTH * EXPORT_HEIGHT) / EXPORT_WIDTH; // Maintain 2:3 ratio
+// Base canvas size untuk single photo (1x1 layout)
+const BASE_CANVAS_WIDTH = Math.min(SCREEN_WIDTH - 32, 400);
+const BASE_CANVAS_HEIGHT = (BASE_CANVAS_WIDTH * EXPORT_HEIGHT) / EXPORT_WIDTH; // Maintain 2:3 ratio
 const EXPORT_SCALE = 1; // Already high resolution
+
+// Helper function untuk calculate canvas size - TETAP 4R RATIO
+const calculateCanvasSize = (layout: LayoutTemplate | null) => {
+  // Canvas tetap 4R ratio (2:3), tidak berubah sesuai layout
+  // Grid cells yang berubah ukurannya
+  if (!layout) {
+    return { width: 0, height: 0 }; // No layout selected
+  }
+  return {
+    width: BASE_CANVAS_WIDTH,
+    height: BASE_CANVAS_HEIGHT, // Tetap 4R ratio
+  };
+};
 
 // Frame types - menggunakan SVG dengan bagian tengah transparan
 type FrameType = {
@@ -155,6 +168,29 @@ const STICKERS = [
   { id: 'sticker8', name: '💖', uri: null, emoji: '💖' },
 ];
 
+// Layout templates untuk grid-based editor
+type LayoutTemplate = {
+  id: string;
+  name: string;
+  cols: number;
+  rows: number;
+  cellAspectRatio: number; // width/height
+};
+
+const LAYOUT_TEMPLATES: LayoutTemplate[] = [
+  { id: '1x1', name: '1 Foto', cols: 1, rows: 1, cellAspectRatio: 2 / 3 },
+  { id: '2x2', name: '2×2 Grid', cols: 2, rows: 2, cellAspectRatio: 1 / 1 },
+  { id: '3x3', name: '3×3 Grid', cols: 3, rows: 3, cellAspectRatio: 1 / 1 },
+  { id: '2x3', name: '2×3 Grid', cols: 2, rows: 3, cellAspectRatio: 2 / 3 },
+  { id: '4x6', name: '4×6 Grid', cols: 4, rows: 6, cellAspectRatio: 2 / 3 },
+];
+
+// Grid cell untuk track foto di setiap cell
+type GridCell = {
+  id: string;
+  photoId: string | null; // foto mana yang di-place di cell ini
+};
+
 type StickerData = {
   id: string;
   x: number;
@@ -178,9 +214,70 @@ export default function PhotoFrameApp() {
   const [activeStickerId, setActiveStickerId] = useState<string | null>(null);
   const [showPhotoList, setShowPhotoList] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedLayout, setSelectedLayout] = useState<LayoutTemplate | null>(null); // No default
+  const [gridCells, setGridCells] = useState<GridCell[]>([]);
+  const [draggingPhotoId, setDraggingPhotoId] = useState<string | null>(null);
+  const [draggedOverCellId, setDraggedOverCellId] = useState<string | null>(null);
+
+  // Calculate canvas size based on selected layout
+  const canvasSize = calculateCanvasSize(selectedLayout);
+  const CANVAS_WIDTH = canvasSize.width;
+  const CANVAS_HEIGHT = canvasSize.height;
+
+  // Initialize grid cells ketika layout berubah
+  const initializeGridCells = (layout: LayoutTemplate | null) => {
+    if (!layout) {
+      setGridCells([]);
+      return;
+    }
+    const totalCells = layout.cols * layout.rows;
+    const newCells: GridCell[] = Array.from({ length: totalCells }).map((_, idx) => ({
+      id: `cell-${idx}`,
+      photoId: null,
+    }));
+    setGridCells(newCells);
+  };
+
+  // Update grid cells ketika layout berubah
+  React.useEffect(() => {
+    initializeGridCells(selectedLayout);
+  }, [selectedLayout]);
+
+  // Load photos saat component mount
+  React.useEffect(() => {
+    console.log('Component mounted, loading photos...');
+    loadPhotos();
+  }, []);
+
+  // Debug: log photoList changes
+  React.useEffect(() => {
+    console.log('photoList updated:', photoList.length, 'photos, loading:', loading);
+  }, [photoList, loading]);
+
+  // Function untuk assign foto ke grid cell
+  const assignPhotoToCell = (cellId: string, photoId: string) => {
+    setGridCells(prev => prev.map(cell =>
+      cell.id === cellId ? { ...cell, photoId } : cell
+    ));
+  };
+
+  // Function untuk clear foto dari grid cell
+  const clearPhotoFromCell = (cellId: string) => {
+    setGridCells(prev => prev.map(cell =>
+      cell.id === cellId ? { ...cell, photoId: null } : cell
+    ));
+  };
+
+  // Function untuk handle drop foto ke cell
+  const handleDropPhotoToCell = (cellId: string, photoId: string) => {
+    assignPhotoToCell(cellId, photoId);
+    setDraggingPhotoId(null);
+    setDraggedOverCellId(null);
+  };
 
   // Load photos from database - menggunakan dummy data untuk sementara
-  const loadPhotos = async () => {
+  const loadPhotos = React.useCallback(async () => {
+    console.log('loadPhotos called');
     setLoading(true);
     try {
       // Dummy photos untuk testing - bisa diganti dengan getCustomerPhotos(phone) nanti
@@ -227,7 +324,9 @@ export default function PhotoFrameApp() {
         },
       ];
 
+      console.log('Setting photoList with', dummyPhotos.length, 'photos');
       setPhotoList(dummyPhotos);
+      console.log('photoList state updated');
       setShowPhotoList(true);
 
       // Uncomment untuk menggunakan database real:
@@ -240,7 +339,7 @@ export default function PhotoFrameApp() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const selectPhoto = (photo: PhotoTransaction) => {
     setSelectedPhoto(photo);
@@ -276,7 +375,7 @@ export default function PhotoFrameApp() {
 
   // Render canvas manually untuk export (memastikan frame dan stiker tersimpan)
   const renderCanvasForExport = async (): Promise<HTMLCanvasElement | null> => {
-    if (!selectedPhoto || Platform.OS !== 'web') return null;
+    if (!selectedPhoto || !selectedLayout || Platform.OS !== 'web') return null;
 
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas') as HTMLCanvasElement;
@@ -288,12 +387,63 @@ export default function PhotoFrameApp() {
         return;
       }
 
-      // 1. Draw background photo
-      const img = new (window as any).Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, EXPORT_WIDTH, EXPORT_HEIGHT);
+      // Helper function untuk draw foto
+      const drawPhoto = (photoLink: string, x: number, y: number, width: number, height: number) => {
+        return new Promise<void>((photoResolve) => {
+          const img = new (window as any).Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            ctx.drawImage(img, x, y, width, height);
+            photoResolve();
+          };
+          img.onerror = () => photoResolve(); // Skip jika foto gagal load
+          img.src = photoLink;
+        });
+      };
 
+      // Determine apakah grid atau single photo
+      const isGrid = selectedLayout && (selectedLayout.cols > 1 || selectedLayout.rows > 1);
+
+      if (isGrid && selectedLayout) {
+        // Multi-cell grid: draw semua cells dengan foto masing-masing
+        const cellWidth = EXPORT_WIDTH / selectedLayout.cols;
+        const cellHeight = EXPORT_HEIGHT / selectedLayout.rows;
+        let photoLoadCount = 0;
+        const totalCells = gridCells.length;
+
+        gridCells.forEach((cell, idx) => {
+          const col = idx % selectedLayout.cols;
+          const row = Math.floor(idx / selectedLayout.cols);
+          const x = col * cellWidth;
+          const y = row * cellHeight;
+
+          const cellPhoto = cell.photoId
+            ? photoList.find(p => p.id === cell.photoId)
+            : selectedPhoto;
+
+          if (cellPhoto) {
+            drawPhoto(cellPhoto.link, x, y, cellWidth, cellHeight).then(() => {
+              photoLoadCount++;
+              if (photoLoadCount === totalCells) {
+                // Semua foto selesai di-draw, sekarang draw frame dan stickers
+                drawFrameAndStickers();
+              }
+            });
+          } else {
+            photoLoadCount++;
+            if (photoLoadCount === totalCells) {
+              drawFrameAndStickers();
+            }
+          }
+        });
+      } else {
+        // Single photo: draw seperti sebelumnya
+        drawPhoto(selectedPhoto.link, 0, 0, EXPORT_WIDTH, EXPORT_HEIGHT).then(() => {
+          drawFrameAndStickers();
+        });
+      }
+
+      const drawFrameAndStickers = () => {
         // 2. Draw frame (SVG) - render as colored rectangles
         if (selectedFrame && selectedFrame.type === 'svg') {
           const frameColor = selectedFrame.color;
@@ -336,7 +486,6 @@ export default function PhotoFrameApp() {
 
         resolve(canvas);
       };
-      img.src = selectedPhoto.link;
     });
   };
 
@@ -579,7 +728,8 @@ export default function PhotoFrameApp() {
 
       {/* Main Content - 3 Column Layout */}
       <View style={styles.mainContent}>
-        {/* Left Column - Photo Selector */}
+        {/* Left Column - Photo Selector - Hanya muncul jika layout dipilih */}
+        {selectedLayout && (
         <View style={styles.photoColumn}>
           <Text style={styles.photoColumnTitle}>Pilih Foto</Text>
           <ScrollView showsVerticalScrollIndicator={false} style={styles.photoColumnScroll}>
@@ -596,29 +746,53 @@ export default function PhotoFrameApp() {
               </View>
             ) : (
               <View style={styles.photoGridContainer}>
-                {photoList.map((photo) => (
-                  <TouchableOpacity
-                    key={photo.id}
-                    onPress={() => selectPhoto(photo)}
-                    style={[
-                      styles.photoGridItem,
-                      selectedPhoto?.id === photo.id && styles.photoGridItemActive,
-                    ]}
-                  >
-                    <Image
-                      source={{ uri: photo.link }}
-                      style={styles.photoGridItemImage}
-                    />
-                    <View style={styles.photoGridItemOverlay}>
-                      <Text style={styles.photoGridItemName} numberOfLines={1}>
-                        {photo.name}
-                      </Text>
-                      <Text style={styles.photoGridItemPackage} numberOfLines={1}>
-                        {photo.package}
-                      </Text>
+                {photoList.map((photo) => {
+                  const longPressGesture = Gesture.LongPress()
+                    .onStart(() => {
+                      if (selectedLayout && (selectedLayout.cols > 1 || selectedLayout.rows > 1)) {
+                        runOnJS(setDraggingPhotoId)(photo.id);
+                      }
+                    });
+
+                  return (
+                    <View
+                      key={photo.id}
+                      style={[
+                        styles.photoGridItemWrapper,
+                        draggingPhotoId === photo.id && styles.photoGridItemWrapperDragging,
+                      ]}
+                    >
+                      <GestureDetector gesture={longPressGesture}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            // Hanya bisa select foto jika layout dipilih dan 1x1
+                            if (selectedLayout && selectedLayout.cols === 1 && selectedLayout.rows === 1) {
+                              selectPhoto(photo);
+                            }
+                          }}
+                          style={[
+                            styles.photoGridItem,
+                            selectedPhoto?.id === photo.id && styles.photoGridItemActive,
+                            draggingPhotoId === photo.id && styles.photoGridItemDragging,
+                          ]}
+                        >
+                          <Image
+                            source={{ uri: photo.link }}
+                            style={styles.photoGridItemImage}
+                          />
+                          <View style={styles.photoGridItemOverlay}>
+                            <Text style={styles.photoGridItemName} numberOfLines={1}>
+                              {photo.name}
+                            </Text>
+                            <Text style={styles.photoGridItemPackage} numberOfLines={1}>
+                              {photo.package}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      </GestureDetector>
                     </View>
-                  </TouchableOpacity>
-                ))}
+                  );
+                })}
               </View>
             )}
           </ScrollView>
@@ -628,21 +802,79 @@ export default function PhotoFrameApp() {
             </TouchableOpacity>
           )}
         </View>
+        )}
 
         {/* Center Column - Canvas/Preview */}
-        {selectedPhoto && (
+        {selectedLayout && (
           <View style={styles.centerColumn}>
             <View
               ref={canvasRef}
               collapsable={false}
               style={[styles.canvas, { width: CANVAS_WIDTH, height: CANVAS_HEIGHT }]}
             >
-              {/* Background Photo */}
-              <Image
-                source={{ uri: selectedPhoto.link }}
-                style={styles.backgroundPhoto}
-                resizeMode="cover"
-              />
+              {/* Grid Cells */}
+              {selectedLayout && (selectedLayout.cols > 1 || selectedLayout.rows > 1) ? (
+                // Multi-cell grid
+                <View style={styles.gridContainer}>
+                  {gridCells.map((cell, idx) => {
+                    const cellWidth = CANVAS_WIDTH / selectedLayout!.cols;
+                    const cellHeight = CANVAS_HEIGHT / selectedLayout!.rows;
+                    const col = idx % selectedLayout!.cols;
+                    const row = Math.floor(idx / selectedLayout!.cols);
+
+                    // Get photo untuk cell ini
+                    const cellPhoto = cell.photoId
+                      ? photoList.find(p => p.id === cell.photoId)
+                      : selectedPhoto;
+
+                    return (
+                      <TouchableOpacity
+                        key={cell.id}
+                        onPress={() => {
+                          if (draggingPhotoId) {
+                            handleDropPhotoToCell(cell.id, draggingPhotoId);
+                          }
+                        }}
+                        style={[
+                          styles.gridCell,
+                          {
+                            width: cellWidth,
+                            height: cellHeight,
+                            left: col * cellWidth,
+                            top: row * cellHeight,
+                          },
+                          draggedOverCellId === cell.id && styles.gridCellDragOver,
+                        ]}
+                      >
+                        {cellPhoto && (
+                          <Image
+                            source={{ uri: cellPhoto.link }}
+                            style={styles.backgroundPhoto}
+                            resizeMode="cover"
+                          />
+                        )}
+                        {draggingPhotoId && !cellPhoto && (
+                          <View style={styles.gridCellDropZone}>
+                            <Text style={styles.gridCellDropZoneText}>Drop here</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : selectedPhoto ? (
+                // Single photo (1x1 layout)
+                <Image
+                  source={{ uri: selectedPhoto.link }}
+                  style={styles.backgroundPhoto}
+                  resizeMode="cover"
+                />
+              ) : (
+                // No photo selected
+                <View style={styles.gridCellDropZone}>
+                  <Text style={styles.gridCellDropZoneText}>Pilih foto</Text>
+                </View>
+              )}
 
               {/* Selected Frame */}
               {selectedFrame && selectedFrame.type === 'svg' && (
@@ -660,10 +892,29 @@ export default function PhotoFrameApp() {
         )}
 
         {/* Right Column - Controls */}
-        {selectedPhoto && (
-          <View style={styles.rightColumn}>
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.controlsScroll}>
-              {/* Frame Selector */}
+        <View style={styles.rightColumn}>
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.controlsScroll}>
+            {/* Layout Selector - ALWAYS VISIBLE */}
+            <View style={styles.controlSection}>
+              <Text style={styles.controlTitle}>Layout</Text>
+              <View style={styles.layoutGrid}>
+                {LAYOUT_TEMPLATES.map((layout) => (
+                  <TouchableOpacity
+                    key={layout.id}
+                    onPress={() => setSelectedLayout(layout)}
+                    style={[
+                      styles.layoutItem,
+                      selectedLayout && selectedLayout.id === layout.id && styles.layoutItemActive,
+                    ]}
+                  >
+                    <Text style={styles.layoutItemText}>{layout.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Frame Selector - Hanya muncul jika layout dipilih */}
+            {selectedLayout && (
               <View style={styles.controlSection}>
                 <Text style={styles.controlTitle}>Frame</Text>
                 <View style={styles.frameGrid}>
@@ -684,63 +935,67 @@ export default function PhotoFrameApp() {
                   ))}
                 </View>
               </View>
+            )}
 
-              {/* Sticker Selector */}
-              <View style={styles.controlSection}>
-                <Text style={styles.controlTitle}>Stiker</Text>
-                <View style={styles.stickerGrid}>
-                  {STICKERS.map((sticker) => (
-                    <TouchableOpacity
-                      key={sticker.id}
-                      onPress={() => addSticker(sticker)}
-                      style={styles.stickerItem}
-                    >
-                      <Text style={styles.stickerItemEmoji}>{sticker.emoji}</Text>
-                      <Text style={styles.stickerItemText}>{sticker.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Clear Buttons */}
-              <View style={styles.controlSection}>
-                {selectedFrame && (
+            {/* Sticker Selector - Hanya muncul jika layout dipilih */}
+            {selectedLayout && (
+            <View style={styles.controlSection}>
+              <Text style={styles.controlTitle}>Stiker</Text>
+              <View style={styles.stickerGrid}>
+                {STICKERS.map((sticker) => (
                   <TouchableOpacity
-                    onPress={() => setSelectedFrame(null)}
-                    style={styles.clearButtonSmall}
+                    key={sticker.id}
+                    onPress={() => addSticker(sticker)}
+                    style={styles.stickerItem}
                   >
-                    <Text style={styles.clearButtonText}>🗑️ Hapus Frame</Text>
+                    <Text style={styles.stickerItemEmoji}>{sticker.emoji}</Text>
+                    <Text style={styles.stickerItemText}>{sticker.name}</Text>
                   </TouchableOpacity>
-                )}
-
-                {stickers.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setStickers([]);
-                      setActiveStickerId(null);
-                    }}
-                    style={styles.clearButtonSmall}
-                  >
-                    <Text style={styles.clearButtonText}>🗑️ Hapus Semua Stiker</Text>
-                  </TouchableOpacity>
-                )}
+                ))}
               </View>
-            </ScrollView>
-            
-            {/* Floating Save Button */}
-            <TouchableOpacity
-              onPress={saveToGallery}
-              style={[styles.floatingSaveButton, saving && styles.floatingSaveButtonDisabled]}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.floatingSaveButtonText}>💾 Simpan Hasil</Text>
+            </View>
+            )}
+
+            {/* Clear Buttons - Hanya muncul jika layout dipilih */}
+            {selectedLayout && (
+            <View style={styles.controlSection}>
+              {selectedFrame && (
+                <TouchableOpacity
+                  onPress={() => setSelectedFrame(null)}
+                  style={styles.clearButtonSmall}
+                >
+                  <Text style={styles.clearButtonText}>🗑️ Hapus Frame</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
-          </View>
-        )}
+
+              {stickers.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setStickers([]);
+                    setActiveStickerId(null);
+                  }}
+                  style={styles.clearButtonSmall}
+                >
+                  <Text style={styles.clearButtonText}>🗑️ Hapus Semua Stiker</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            )}
+          </ScrollView>
+
+          {/* Floating Save Button */}
+          <TouchableOpacity
+            onPress={saveToGallery}
+            style={[styles.floatingSaveButton, saving && styles.floatingSaveButtonDisabled]}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.floatingSaveButtonText}>💾 Simpan Hasil</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -1242,45 +1497,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   photoGridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     padding: 8,
     gap: 8,
   },
   photoGridItem: {
-    flex: 1,
-    minWidth: '45%',
-    aspectRatio: 2 / 3,
+    flexDirection: 'row',
+    height: 80,
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#F5F5F5',
     borderWidth: 2,
     borderColor: 'transparent',
+    alignItems: 'center',
   },
   photoGridItemActive: {
     borderColor: '#F7931A',
     borderWidth: 3,
   },
   photoGridItemImage: {
-    width: '100%',
-    height: '100%',
+    width: 80,
+    height: 80,
   },
   photoGridItemOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 8,
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    padding: 12,
+    justifyContent: 'center',
   },
   photoGridItemName: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
     color: '#fff',
     marginBottom: 2,
   },
   photoGridItemPackage: {
-    fontSize: 9,
+    fontSize: 11,
     color: '#ddd',
   },
   refreshPhotoListButton: {
@@ -1300,5 +1552,107 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
+  },
+  // Layout Selector Styles
+  layoutGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  layoutItem: {
+    flex: 1,
+    minWidth: '45%',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  layoutItemActive: {
+    backgroundColor: '#FFE5CC',
+    borderColor: '#F7931A',
+  },
+  layoutItemText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+  },
+  // Grid Styles
+  gridContainer: {
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+  },
+  gridCell: {
+    position: 'absolute',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    overflow: 'hidden',
+  },
+  // Photo Grid Item Wrapper & Assign Button
+  photoGridItemWrapper: {
+    position: 'relative',
+  },
+  photoGridItemWrapperDragging: {
+    opacity: 0.5,
+    transform: [{ scale: 0.95 }],
+  },
+  photoGridItemDragging: {
+    borderWidth: 3,
+    borderColor: '#F7931A',
+    backgroundColor: '#FFE5CC',
+    shadowColor: '#F7931A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  assignPhotoButton: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F7931A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  assignPhotoButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  // Grid Cell Drop Zone Styles
+  gridCellDragOver: {
+    backgroundColor: 'rgba(247, 147, 26, 0.2)',
+    borderWidth: 3,
+    borderColor: '#F7931A',
+    borderStyle: 'dashed',
+    shadowColor: '#F7931A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  gridCellDropZone: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(247, 147, 26, 0.3)',
+  },
+  gridCellDropZoneText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F7931A',
+    textAlign: 'center',
   },
 });

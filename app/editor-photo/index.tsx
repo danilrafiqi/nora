@@ -34,6 +34,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
+import { FrameType, LayoutTemplate, GridCell, PhotoTransform, StickerData, StickerItem } from './types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 // 4R paper: 102mm × 152mm (aspect ratio 2:3)
@@ -59,14 +60,7 @@ const calculateCanvasSize = (layout: LayoutTemplate | null) => {
   };
 };
 
-// Frame types - menggunakan SVG dengan bagian tengah transparan
-type FrameType = {
-  id: string;
-  name: string;
-  type: 'svg';
-  component: (size: number) => React.ReactNode;
-  color: string;
-};
+// Frame types sudah di-import dari types.ts
 
 // Frame Component untuk border sederhana
 const SimpleBorderFrame = ({ size, color }: { size: number; color: string }) => (
@@ -169,14 +163,6 @@ const STICKERS = [
 ];
 
 // Layout templates untuk grid-based editor
-type LayoutTemplate = {
-  id: string;
-  name: string;
-  cols: number;
-  rows: number;
-  cellAspectRatio: number; // width/height
-};
-
 const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   { id: '1x1', name: '1 Foto', cols: 1, rows: 1, cellAspectRatio: 2 / 3 },
   { id: '2x2', name: '2×2 Grid', cols: 2, rows: 2, cellAspectRatio: 1 / 1 },
@@ -185,30 +171,7 @@ const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   { id: '4x6', name: '4×6 Grid', cols: 4, rows: 6, cellAspectRatio: 2 / 3 },
 ];
 
-// Grid cell untuk track foto di setiap cell
-type GridCell = {
-  id: string;
-  photoId: string | null; // foto mana yang di-place di cell ini
-};
-
-// Photo transform untuk track position, scale, rotation di canvas
-type PhotoTransform = {
-  photoId: string;
-  x: number;
-  y: number;
-  scale: number;
-  rotation: number;
-};
-
-type StickerData = {
-  id: string;
-  x: number;
-  y: number;
-  scale: number;
-  rotation: number;
-  uri: string | null;
-  emoji?: string;
-};
+// Types sudah di-import dari types.ts
 
 export default function PhotoFrameApp() {
   const insets = useSafeAreaInsets();

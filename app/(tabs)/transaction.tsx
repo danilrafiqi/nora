@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { addDoc, collection, deleteDoc, doc, limit as fbLimit, getDocs, orderBy, query, startAfter } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
-import { Linking, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Modal, ScrollView, Text, View, Pressable } from "react-native";
 
 // Gluestack Select
 import { ChevronDownIcon } from "@/components/ui/icon";
@@ -367,15 +367,21 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`,
   };
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <View className="flex-1 bg-bg-muted p-4">
       {/* Header actions */}
-      <View style={{ marginBottom: 12, flexDirection: 'row', gap: 8 }}>
-        <Button onPress={() => setIsFormOpen(true)} action="primary" variant="solid" className="flex-1">
-          <ButtonText>Tambah Transaksi</ButtonText>
-        </Button>
-        <Button onPress={signOut} action="negative" variant="outline">
-          <ButtonText>Logout</ButtonText>
-        </Button>
+      <View className="mb-3 flex-row gap-3">
+        <Pressable
+          onPress={() => setIsFormOpen(true)}
+          className="flex-1 bg-accent-orange px-4 py-3 rounded shadow-medium active:bg-accent-orangeDark"
+        >
+          <Text className="text-white font-body font-semibold text-center">Tambah Transaksi</Text>
+        </Pressable>
+        <Pressable
+          onPress={signOut}
+          className="border border-outline-300 bg-white px-4 py-3 rounded active:bg-outline-100"
+        >
+          <Text className="font-body text-center text-typography-700">Logout</Text>
+        </Pressable>
       </View>
       <ScrollView>
         {/* Container tabel */}
@@ -413,21 +419,19 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`,
                       <TableData>
                         <View style={{ flexDirection: "row", gap: 6 }}>
                           {(role === 'super_admin' || role === 'admin') && (
-                            <Button
+                            <Pressable
                               onPress={() => setDeleteId(item.id)}
-                              action="negative"
-                              variant="solid"
+                              className="bg-error-500 px-3 py-1.5 rounded shadow-sm active:bg-error-600"
                             >
-                              <ButtonText>Delete</ButtonText>
-                            </Button>
+                              <Text className="font-body text-xs text-white">Delete</Text>
+                            </Pressable>
                           )}
-                          <Button
+                          <Pressable
                             onPress={() => handleSendWhatsApp(item)}
-                            action="positive"
-                            variant="solid"
+                            className="bg-accent-orange px-3 py-1.5 rounded shadow-medium active:bg-accent-orangeDark"
                           >
-                            <ButtonText>Kirim WA</ButtonText>
-                          </Button>
+                            <Text className="font-body font-semibold text-xs text-white">Kirim WA</Text>
+                          </Pressable>
                         </View>
                       </TableData>
                     </TableRow>
@@ -435,14 +439,20 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`,
                 </TableBody>
               </Table>
               {/* Load more control under the table to keep UI intact */}
-              <View style={{ paddingVertical: 12 }}>
+              <View className="py-3">
                 {hasMore ? (
-                  <Button onPress={loadMoreTransactions} action="secondary" variant="outline" disabled={isLoading}>
-                    <ButtonText>{isLoading ? "Loading..." : "Load More"}</ButtonText>
-                  </Button>
+                  <Pressable
+                    onPress={loadMoreTransactions}
+                    disabled={isLoading}
+                    className="border border-outline-300 bg-white px-4 py-2.5 rounded active:bg-outline-100 disabled:opacity-50"
+                  >
+                    <Text className="font-body text-center text-typography-700">
+                      {isLoading ? "Loading..." : "Load More"}
+                    </Text>
+                  </Pressable>
                 ) : (
                   transactions.length > 0 ? (
-                    <Text style={{ textAlign: "center", color: "#666" }}>Semua data sudah ditampilkan</Text>
+                    <Text className="text-center font-body text-typography-600">Semua data sudah ditampilkan</Text>
                   ) : null
                 )}
               </View>
@@ -452,28 +462,24 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`,
       </ScrollView>
       {/* Modal Hapus */}
       <Modal visible={!!deleteId} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <Text style={{ fontSize: 16, marginBottom: 20 }}>
+        <View className="flex-1 bg-black/50 justify-center items-center">
+          <View className="bg-white p-5 rounded-lg w-4/5 items-center shadow-lg">
+            <Text className="text-base font-body text-typography-900 mb-5">
               Yakin mau hapus data ini?
             </Text>
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <Button
+            <View className="flex-row gap-3 w-full">
+              <Pressable
                 onPress={() => setDeleteId(null)}
-                action="secondary"
-                variant="outline"
-                className="flex-1"
+                className="flex-1 border border-outline-300 bg-white px-4 py-2.5 rounded active:bg-outline-100"
               >
-                <ButtonText>Batal</ButtonText>
-              </Button>
-              <Button
+                <Text className="font-body text-center text-typography-700">Batal</Text>
+              </Pressable>
+              <Pressable
                 onPress={handleDelete}
-                action="negative"
-                variant="solid"
-                className="flex-1"
+                className="flex-1 bg-error-500 px-4 py-2.5 rounded shadow-sm active:bg-error-600"
               >
-                <ButtonText>Hapus</ButtonText>
-              </Button>
+                <Text className="font-body font-semibold text-center text-white">Hapus</Text>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -481,29 +487,33 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`,
 
       {/* Modal Form Transaksi */}
       <Modal visible={isFormOpen} transparent animationType="slide" onRequestClose={() => setIsFormOpen(false)}>
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <Text style={{ fontSize: 18, marginBottom: 12 }}>Tambah Transaksi</Text>
-            <View style={{ width: '100%', gap: 10 }}>
-              <Input variant="outline" size="md">
+        <View className="flex-1 bg-black/50 justify-center items-center">
+          <View className="bg-white p-5 rounded-lg w-4/5 items-center shadow-lg">
+            <Text className="text-lg font-heading font-bold text-typography-900 mb-3">
+              Tambah Transaksi
+            </Text>
+            <View className="w-full gap-3">
+              <Input variant="outline" size="md" className="bg-white rounded border-outline-300">
                 <InputField
                   placeholder="Link"
                   value={form.link}
                   onChangeText={(text) => handleChange("link", text)}
+                  className="font-body"
                 />
               </Input>
-              <Input variant="outline" size="md">
+              <Input variant="outline" size="md" className="bg-white rounded border-outline-300">
                 <InputField
                   placeholder="Name"
                   value={form.name}
                   onChangeText={(text) => handleChange("name", text)}
+                  className="font-body"
                 />
               </Input>
               <Select
                 onValueChange={(val) => handleChange("package", val)}
                 selectedValue={form.package}
               >
-                <SelectTrigger variant="outline" size="md">
+                <SelectTrigger variant="outline" size="md" className="rounded border-outline-300">
                   <SelectInput placeholder="Pilih Package" />
                   <SelectIcon as={ChevronDownIcon} className="mr-3" />
                 </SelectTrigger>
@@ -519,29 +529,37 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`,
                   </SelectContent>
                 </SelectPortal>
               </Select>
-              <Input variant="outline" size="md">
+              <Input variant="outline" size="md" className="bg-white rounded border-outline-300">
                 <InputField
                   placeholder="Phone"
                   value={form.phone}
                   onChangeText={(text) => handleChange("phone", text)}
                   keyboardType="phone-pad"
+                  className="font-body"
                 />
               </Input>
-              <Input variant="outline" size="md">
+              <Input variant="outline" size="md" className="bg-white rounded border-outline-300">
                 <InputField
                   placeholder="Total Spending"
                   value={form.total_spending}
                   onChangeText={(text) => handleChange("total_spending", text)}
                   keyboardType="numeric"
+                  className="font-body"
                 />
               </Input>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                <Button onPress={() => setIsFormOpen(false)} action="secondary" variant="outline" className="flex-1">
-                  <ButtonText>Batal</ButtonText>
-                </Button>
-                <Button onPress={async () => { await handleSubmit(); setIsFormOpen(false); }} action="primary" variant="solid" className="flex-1">
-                  <ButtonText>Simpan</ButtonText>
-                </Button>
+              <View className="flex-row gap-3 mt-1">
+                <Pressable
+                  onPress={() => setIsFormOpen(false)}
+                  className="flex-1 border border-outline-300 bg-white px-4 py-2.5 rounded active:bg-outline-100"
+                >
+                  <Text className="font-body text-center text-typography-700">Batal</Text>
+                </Pressable>
+                <Pressable
+                  onPress={async () => { await handleSubmit(); setIsFormOpen(false); }}
+                  className="flex-1 bg-accent-orange px-4 py-2.5 rounded shadow-medium active:bg-accent-orangeDark"
+                >
+                  <Text className="font-body font-semibold text-center text-white">Simpan</Text>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -550,19 +568,3 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`,
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalBox: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 12,
-    width: "80%",
-    alignItems: "center",
-  },
-});

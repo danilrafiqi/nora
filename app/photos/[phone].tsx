@@ -1,5 +1,14 @@
+/**
+ * Photo Results Page - Modern Pastel + Bitcoin Orange Energy Theme
+ * 
+ * VISUAL CHANGES:
+ * - Bitcoin Orange accent colors for active states
+ * - Pastel background (#FFEDE2)
+ * - Rounded-xl cards with shadow-md
+ * - Orange buttons for primary actions
+ */
+
 import { Box } from "@/components/ui/box";
-import { Button, ButtonText } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { getCustomerPhotos, getDaysRemaining, isLinkExpired, PhotoTransaction } from "@/services/photoService";
@@ -8,7 +17,7 @@ import { id } from "date-fns/locale";
 import * as Clipboard from "expo-clipboard";
 import { Stack, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Linking, ScrollView, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from "react-native";
 
 export default function PhotosResultPage() {
   const { phone } = useLocalSearchParams<{ phone: string }>();
@@ -80,9 +89,9 @@ export default function PhotosResultPage() {
     return (
       <>
         <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
-        <Box className="flex-1 bg-background-0 items-center justify-center">
-          <ActivityIndicator size="large" />
-          <Text className="mt-4 text-typography-500">Memuat foto Anda...</Text>
+        <Box className="flex-1 bg-accent-peach items-center justify-center">
+          <ActivityIndicator size="large" color="#F7931A" />
+          <Text className="mt-4 font-body text-typography-600">Memuat foto Anda...</Text>
         </Box>
       </>
     );
@@ -93,17 +102,17 @@ export default function PhotosResultPage() {
       <>
         <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-          <Box className="flex-1 bg-background-0 p-6">
+          <Box className="flex-1 bg-accent-peach p-6">
             <VStack space="xl" className="items-center justify-center flex-1">
               <Text className="text-4xl">📭</Text>
               <VStack space="sm" className="items-center">
-                <Text className="text-xl font-bold text-center">
+                <Text className="text-xl font-heading font-bold text-center text-typography-900">
                   Tidak Ada Foto Ditemukan
                 </Text>
-                <Text className="text-center text-typography-500">
+                <Text className="text-center font-body text-typography-600">
                   Tidak ada foto yang ditemukan untuk nomor HP ini.
                 </Text>
-                <Text className="text-center text-typography-500 text-sm mt-2">
+                <Text className="text-center font-body text-typography-600 text-sm mt-2">
                   Pastikan nomor HP yang Anda masukkan sudah benar.
                 </Text>
               </VStack>
@@ -118,13 +127,15 @@ export default function PhotosResultPage() {
     <>
       <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <Box className="flex-1 bg-background-0">
+        <Box className="flex-1 bg-accent-peach">
           {/* Header */}
-          <View className="p-6 pb-4 border-b border-border-200">
+          <View className="p-6 pb-4 bg-white border-b border-outline-200">
             <VStack space="xs">
-              <Text className="text-2xl font-bold">📸 Foto {customerName}</Text>
-              <Text className="text-sm text-typography-500">📱 {phone}</Text>
-              <Text className="text-sm text-typography-600">
+              <Text className="text-2xl font-heading font-bold text-accent-orange">
+                📸 Foto {customerName}
+              </Text>
+              <Text className="text-sm font-body text-typography-600">📱 {phone}</Text>
+              <Text className="text-sm font-body text-typography-600">
                 Total: {photos.length} {photos.length === 1 ? "transaksi" : "transaksi"}
               </Text>
             </VStack>
@@ -140,7 +151,7 @@ export default function PhotosResultPage() {
                 return (
                   <View
                     key={photo.id}
-                    className="bg-background-100 p-4 rounded-xl border border-border-200"
+                    className="bg-white p-5 rounded-lg border border-outline-200 shadow-medium"
                   >
                     <VStack space="sm">
                       {/* Date & Package */}
@@ -148,13 +159,13 @@ export default function PhotosResultPage() {
                         <VStack space="xs" className="flex-1">
                           <View className="flex-row items-center gap-2">
                             <Text className="text-lg">📅</Text>
-                            <Text className="text-base font-semibold">
+                            <Text className="text-base font-body font-semibold text-text-primary">
                               {formatDate(photo.created_at)}
                             </Text>
                           </View>
                           <View className="flex-row items-center gap-2">
                             <Text className="text-lg">📦</Text>
-                            <Text className="text-base text-typography-600">
+                            <Text className="text-base font-body text-text-secondary">
                               {photo.package}
                             </Text>
                           </View>
@@ -163,28 +174,28 @@ export default function PhotosResultPage() {
 
                       {/* Expiry Status */}
                       {expired ? (
-                        <View className="bg-error-50 p-2 rounded-lg border border-error-200">
-                          <Text className="text-sm text-error-800">
+                        <View className="bg-error-50 p-3 rounded border border-error-200">
+                          <Text className="text-sm font-body text-error-800">
                             ⚠️ Link Expired (kadaluarsa lebih dari 7 hari)
                           </Text>
                         </View>
                       ) : (
-                        <View className="bg-success-50 p-2 rounded-lg border border-success-200">
-                          <Text className="text-sm text-success-800">
+                        <View className="bg-success-50 p-3 rounded border border-success-200">
+                          <Text className="text-sm font-body text-success-800">
                             ⏰ Tersisa {daysRemaining} {daysRemaining === 1 ? "hari" : "hari"}
                           </Text>
                         </View>
                       )}
 
                       {/* Link Display - Sensor jika expired */}
-                      <View className="bg-background-50 p-3 rounded-lg border border-border-100">
+                      <View className="bg-offwhite p-3 rounded border border-outline-200">
                         {expired ? (
-                          <Text className="text-sm text-typography-400 italic">
+                          <Text className="text-sm font-body text-typography-400 italic">
                             🔗 ••••••••••••••••••••••••••••••••••••••••••••••••••••••••
                           </Text>
                         ) : (
                           <Text
-                            className="text-sm text-typography-600"
+                            className="text-sm font-body text-text-secondary"
                             numberOfLines={2}
                             ellipsizeMode="middle"
                           >
@@ -195,26 +206,27 @@ export default function PhotosResultPage() {
 
                       {/* Actions */}
                       <View className="flex-row gap-2 mt-2">
-                        <Button
+                        <Pressable
                           onPress={() => handleCopyLink(photo.link)}
-                          action="secondary"
-                          variant="outline"
-                          className="flex-1"
-                          size="md"
                           disabled={expired}
+                          className="flex-1 border border-outline-300 bg-white px-4 py-2.5 rounded active:bg-outline-100 disabled:opacity-50"
                         >
-                          <ButtonText>{expired ? "Tidak Tersedia" : "Salin Link"}</ButtonText>
-                        </Button>
-                        <Button
+                          <Text className="font-body text-center text-typography-700">
+                            {expired ? "Tidak Tersedia" : "Salin Link"}
+                          </Text>
+                        </Pressable>
+                        <Pressable
                           onPress={() => handleOpenLink(photo.link, expired)}
-                          action={expired ? "secondary" : "primary"}
-                          variant={expired ? "outline" : "solid"}
-                          className="flex-1"
-                          size="md"
                           disabled={expired}
+                          className={`flex-1 px-4 py-2.5 rounded shadow-medium ${expired
+                            ? 'bg-typography-400'
+                            : 'bg-accent-orange active:bg-accent-orangeDark'
+                            } disabled:opacity-50`}
                         >
-                          <ButtonText>{expired ? "Expired" : "Buka Link"}</ButtonText>
-                        </Button>
+                          <Text className="font-body font-semibold text-center text-white">
+                            {expired ? "Expired" : "Buka Link"}
+                          </Text>
+                        </Pressable>
                       </View>
                     </VStack>
                   </View>
@@ -227,4 +239,3 @@ export default function PhotosResultPage() {
     </>
   );
 }
-

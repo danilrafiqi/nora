@@ -1,11 +1,20 @@
-import { Button, ButtonText } from "@/components/ui/button";
+/**
+ * Claim Photos Page - Bitcoin Energy Style
+ * 
+ * DETAIL SPECIFICATIONS:
+ * - Bitcoin Orange (#F7931A) - bold
+ * - Background: Warm pastel (#FFF4E6)
+ * - Border Radius: Minimal (6px buttons, 6px inputs)
+ * - Button hover: Orange-dark, not grey
+ */
+
 import { Input, InputField } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { Box } from "@/components/ui/box";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { ScrollView, View, Alert, Linking } from "react-native";
+import { ScrollView, View, Alert, Linking, Pressable } from "react-native";
 import { isValidPhone, normalizePhone } from "@/utils/phoneNormalizer";
 
 export default function SearchPhotosPage() {
@@ -35,24 +44,26 @@ export default function SearchPhotosPage() {
 
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-      <Box className="flex-1 bg-background-0 p-6">
+      <Box className="flex-1 bg-accent-peach p-6">
         <VStack space="xl" className="items-center justify-center flex-1">
           {/* Header */}
           <VStack space="md" className="items-center w-full">
-            <Text className="text-3xl font-bold text-center">📸</Text>
-            <Text className="text-2xl font-bold text-center">Nora Studio</Text>
-            <Text className="text-lg text-center text-typography-500">
+            <Text className="text-5xl">📸</Text>
+            <Text className="text-3xl font-heading font-bold text-accent-orange">
+              NORA STUDIO
+            </Text>
+            <Text className="text-lg text-center font-body text-typography-600">
               Lihat Foto Anda
             </Text>
           </VStack>
 
           {/* Search Form */}
-          <VStack space="md" className="w-full">
+          <VStack space="md" className="w-full max-w-md">
             <VStack space="sm">
-              <Text className="text-base font-semibold">
+              <Text className="text-base font-body font-semibold text-typography-900">
                 Masukkan nomor HP Anda:
               </Text>
-              <Input variant="outline" size="lg">
+              <Input variant="outline" size="lg" className="bg-white rounded border-outline-200">
                 <InputField
                   placeholder="081234567890 atau 6281234567890"
                   value={phone}
@@ -62,37 +73,37 @@ export default function SearchPhotosPage() {
                   returnKeyType="search"
                   onSubmitEditing={handleSearch}
                   editable={!loading}
+                  className="font-body"
                 />
               </Input>
             </VStack>
 
-            <Button
+            <Pressable
               onPress={handleSearch}
-              action="primary"
-              variant="solid"
-              size="lg"
               disabled={loading || !phone.trim()}
-              className="w-full"
+              className="w-full bg-accent-orange px-6 py-3 rounded shadow-medium active:bg-accent-orangeDark disabled:opacity-50"
             >
-              <ButtonText>{loading ? "Mencari..." : "Cari Foto Saya"}</ButtonText>
-            </Button>
+              <Text className="text-white font-body font-semibold text-center text-base">
+                {loading ? "Mencari..." : "Cari Foto Saya"}
+              </Text>
+            </Pressable>
           </VStack>
 
           {/* Info */}
-          <VStack space="sm" className="w-full mt-4">
-            <View className="bg-info-50 p-4 rounded-lg border border-info-200">
-              <Text className="text-sm text-info-800">
+          <VStack space="sm" className="w-full max-w-md mt-4">
+            <View className="bg-accent-orange/10 p-4 rounded border border-accent-orange/20">
+              <Text className="text-sm font-body text-typography-900">
                 💡 Gunakan nomor HP yang Anda gunakan saat melakukan transaksi di studio
               </Text>
             </View>
           </VStack>
 
           {/* Quick Links */}
-          <VStack space="sm" className="w-full mt-4">
-            <Text className="text-sm text-center text-typography-500">
+          <VStack space="sm" className="w-full max-w-md mt-4">
+            <Text className="text-sm text-center font-body text-typography-600">
               Butuh bantuan? Hubungi kami di{" "}
               <Text
-                className="text-primary-600 underline"
+                className="text-accent-orange font-semibold underline"
                 onPress={() => Linking.openURL("https://wa.me/6281234567890")}
               >
                 WhatsApp
@@ -104,4 +115,3 @@ export default function SearchPhotosPage() {
     </ScrollView>
   );
 }
-

@@ -28,6 +28,7 @@ export default function RootLayout() {
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="photos" options={{ headerShown: false }} />
             <Stack.Screen name="photo-frame-app" options={{ headerShown: false }} />
+            <Stack.Screen name="photo-editor-canvas" options={{ headerShown: false }} />
             <Stack.Screen name="+not-found" />
           </Stack>
           <StatusBar style="auto" />

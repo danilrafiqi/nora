@@ -8,34 +8,43 @@
  * - Simpan hasil ke galeri
  */
 
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  Pressable,
-  Alert,
-  ActivityIndicator,
-  Dimensions,
-  Platform,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-} from 'react-native-reanimated';
-import { captureRef } from 'react-native-view-shot';
+import { PhotoTransaction } from '@/services/photoService';
 import * as MediaLibrary from 'expo-media-library';
-import { getCustomerPhotos, PhotoTransaction } from '@/services/photoService';
 import { useRouter } from 'expo-router';
-import Svg, { Rect, Path } from 'react-native-svg';
+import React, { useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path, Rect } from 'react-native-svg';
+import { captureRef } from 'react-native-view-shot';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CANVAS_SIZE = Math.min(SCREEN_WIDTH - 32, 400);
+// 4R paper: 102mm × 152mm (aspect ratio 2:3)
+// DPI 300 untuk print quality: 102mm = 1200px, 152mm = 1800px
+const EXPORT_WIDTH = 1200;  // 102mm @ 300 DPI
+const EXPORT_HEIGHT = 1800; // 152mm @ 300 DPI
+
+// Display canvas dengan 4R aspect ratio (2:3)
+const CANVAS_WIDTH = Math.min(SCREEN_WIDTH - 32, 400);
+const CANVAS_HEIGHT = (CANVAS_WIDTH * EXPORT_HEIGHT) / EXPORT_WIDTH; // Maintain 2:3 ratio
+const EXPORT_SCALE = 1; // Already high resolution
 
 // Frame types - menggunakan SVG dengan bagian tengah transparan
 type FrameType = {
@@ -104,30 +113,30 @@ const RoundedFrame = ({ size, color }: { size: number; color: string }) => (
 
 // Dummy frame data - menggunakan SVG components
 const FRAMES: FrameType[] = [
-  { 
-    id: 'frame1', 
-    name: 'Border Sederhana', 
+  {
+    id: 'frame1',
+    name: 'Border Sederhana',
     type: 'svg',
     color: '#F7931A',
     component: (size) => <SimpleBorderFrame size={size} color="#F7931A" />
   },
-  { 
-    id: 'frame2', 
-    name: 'Border Ganda', 
+  {
+    id: 'frame2',
+    name: 'Border Ganda',
     type: 'svg',
     color: '#FF6B6B',
     component: (size) => <DoubleBorderFrame size={size} color="#FF6B6B" />
   },
-  { 
-    id: 'frame3', 
-    name: 'Border Dekoratif', 
+  {
+    id: 'frame3',
+    name: 'Border Dekoratif',
     type: 'svg',
     color: '#4ECDC4',
     component: (size) => <DecorativeFrame size={size} color="#4ECDC4" />
   },
-  { 
-    id: 'frame4', 
-    name: 'Border Rounded', 
+  {
+    id: 'frame4',
+    name: 'Border Rounded',
     type: 'svg',
     color: '#95E1D3',
     component: (size) => <RoundedFrame size={size} color="#95E1D3" />
@@ -160,7 +169,7 @@ export default function PhotoFrameApp() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const canvasRef = useRef<View>(null);
-  
+
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoTransaction | null>(null);
   const [photoList, setPhotoList] = useState<PhotoTransaction[]>([]);
   const [loading, setLoading] = useState(false);
@@ -217,10 +226,10 @@ export default function PhotoFrameApp() {
           created_at: new Date().toISOString(),
         },
       ];
-      
+
       setPhotoList(dummyPhotos);
       setShowPhotoList(true);
-      
+
       // Uncomment untuk menggunakan database real:
       // const phone = '081234567890';
       // const photos = await getCustomerPhotos(phone);
@@ -247,8 +256,8 @@ export default function PhotoFrameApp() {
   const addSticker = (sticker: any) => {
     const newSticker: StickerData = {
       id: `sticker_${Date.now()}`,
-      x: CANVAS_SIZE / 2 - 50,
-      y: CANVAS_SIZE / 2 - 50,
+      x: CANVAS_WIDTH / 2 - 50,
+      y: CANVAS_HEIGHT / 2 - 50,
       scale: 1,
       rotation: 0,
       uri: sticker.uri || null,
@@ -265,6 +274,72 @@ export default function PhotoFrameApp() {
     }
   };
 
+  // Render canvas manually untuk export (memastikan frame dan stiker tersimpan)
+  const renderCanvasForExport = async (): Promise<HTMLCanvasElement | null> => {
+    if (!selectedPhoto || Platform.OS !== 'web') return null;
+
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas') as HTMLCanvasElement;
+      canvas.width = EXPORT_WIDTH;
+      canvas.height = EXPORT_HEIGHT;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+
+      // 1. Draw background photo
+      const img = new (window as any).Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, EXPORT_WIDTH, EXPORT_HEIGHT);
+
+        // 2. Draw frame (SVG) - render as colored rectangles
+        if (selectedFrame && selectedFrame.type === 'svg') {
+          const frameColor = selectedFrame.color;
+          const borderWidth = (EXPORT_WIDTH * 20) / CANVAS_WIDTH; // Scale border width
+
+          // Draw frame borders
+          ctx.fillStyle = frameColor;
+          // Top border
+          ctx.fillRect(0, 0, EXPORT_WIDTH, borderWidth);
+          // Left border
+          ctx.fillRect(0, 0, borderWidth, EXPORT_HEIGHT);
+          // Right border
+          ctx.fillRect(EXPORT_WIDTH - borderWidth, 0, borderWidth, EXPORT_HEIGHT);
+          // Bottom border
+          ctx.fillRect(0, EXPORT_HEIGHT - borderWidth, EXPORT_WIDTH, borderWidth);
+        }
+
+        // 3. Draw stickers
+        stickers.forEach((sticker) => {
+          const scale = EXPORT_WIDTH / CANVAS_WIDTH;
+          const x = sticker.x * scale;
+          const y = sticker.y * scale;
+          const stickerWidth = 100 * scale; // Default sticker size
+          const stickerHeight = 100 * scale;
+
+          ctx.save();
+          ctx.translate(x + stickerWidth / 2, y + stickerHeight / 2);
+          ctx.rotate(sticker.rotation);
+          ctx.scale(sticker.scale, sticker.scale);
+
+          if (sticker.emoji) {
+            ctx.font = `${stickerWidth}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(sticker.emoji, 0, 0);
+          }
+
+          ctx.restore();
+        });
+
+        resolve(canvas);
+      };
+      img.src = selectedPhoto.link;
+    });
+  };
+
   const saveToGallery = async () => {
     if (!selectedPhoto) {
       Alert.alert('Error', 'Silakan pilih foto dulu');
@@ -273,55 +348,19 @@ export default function PhotoFrameApp() {
 
     setSaving(true);
     try {
-      // Wait sedikit untuk memastikan UI sudah render
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Wait untuk memastikan semua animasi selesai dan UI sudah render
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       if (Platform.OS === 'web') {
-        // Web: Pakai html2canvas untuk capture
+        // Web: Render canvas manually untuk memastikan frame dan stiker tersimpan
         try {
-          if (typeof document === 'undefined' || !canvasRef.current) {
-            throw new Error('Canvas tidak tersedia');
+          const exportCanvas = await renderCanvasForExport();
+          if (!exportCanvas) {
+            throw new Error('Gagal render canvas');
           }
-
-          // Import html2canvas dynamically (sudah termasuk di react-native-view-shot)
-          const html2canvas = (await import('html2canvas')).default;
-          const canvasElement = canvasRef.current as any;
-          
-          // Get the DOM node - React Native Web menggunakan _nativeNode
-          let element: HTMLElement | null = null;
-          
-          // Try multiple ways to get the DOM element
-          if (canvasElement?._nativeNode) {
-            element = canvasElement._nativeNode;
-          } else if (canvasElement?.current?._nativeNode) {
-            element = canvasElement.current._nativeNode;
-          } else if (canvasElement?.firstChild) {
-            element = canvasElement.firstChild as HTMLElement;
-          }
-
-          if (!element) {
-            // Fallback: try to get by querying
-            const canvasId = `canvas-${Date.now()}`;
-            if (canvasRef.current) {
-              (canvasRef.current as any).setNativeProps?.({ testID: canvasId });
-              element = document.querySelector(`[data-testid="${canvasId}"]`) as HTMLElement;
-            }
-          }
-
-          if (!element) {
-            throw new Error('Tidak dapat menemukan elemen canvas. Coba refresh halaman.');
-          }
-
-          const canvas = await html2canvas(element, {
-            backgroundColor: null,
-            scale: 2, // Higher quality
-            useCORS: true,
-            logging: false,
-            allowTaint: true,
-          });
 
           // Convert to blob and download
-          canvas.toBlob((blob: Blob | null) => {
+          exportCanvas.toBlob((blob: Blob | null) => {
             if (blob) {
               const url = URL.createObjectURL(blob);
               const link = document.createElement('a');
@@ -338,7 +377,7 @@ export default function PhotoFrameApp() {
           }, 'image/png');
         } catch (webError: any) {
           console.error('Web capture error:', webError);
-          Alert.alert('Error', webError.message || 'Gagal capture gambar. Pastikan browser mendukung HTML5 Canvas.');
+          Alert.alert('Error', webError.message || 'Gagal capture gambar.');
         }
       } else {
         // Native: Save ke galeri menggunakan react-native-view-shot
@@ -359,6 +398,7 @@ export default function PhotoFrameApp() {
           format: 'png',
           quality: 1,
           result: 'tmpfile',
+          snapshotContentContainer: true,
         });
 
         await MediaLibrary.saveToLibraryAsync(uri);
@@ -410,14 +450,14 @@ export default function PhotoFrameApp() {
         // Update position setelah drag selesai
         const newX = sticker.x + e.translationX;
         const newY = sticker.y + e.translationY;
-        
-        // Update sticker data di array
-        setStickers(prev => prev.map(s => 
-          s.id === sticker.id 
+
+        // Sync animated values ke React state menggunakan runOnJS
+        runOnJS(setStickers)(prev => prev.map(s =>
+          s.id === sticker.id
             ? { ...s, x: newX, y: newY }
             : s
         ));
-        
+
         sticker.x = newX;
         sticker.y = newY;
       });
@@ -442,8 +482,8 @@ export default function PhotoFrameApp() {
       })
       .onEnd((e) => {
         const newScale = sticker.scale * e.scale;
-        setStickers(prev => prev.map(s => 
-          s.id === sticker.id 
+        runOnJS(setStickers)(prev => prev.map(s =>
+          s.id === sticker.id
             ? { ...s, scale: newScale }
             : s
         ));
@@ -460,8 +500,8 @@ export default function PhotoFrameApp() {
       })
       .onEnd((e) => {
         const newRotation = sticker.rotation + e.rotation;
-        setStickers(prev => prev.map(s => 
-          s.id === sticker.id 
+        runOnJS(setStickers)(prev => prev.map(s =>
+          s.id === sticker.id
             ? { ...s, rotation: newRotation }
             : s
         ));
@@ -479,7 +519,6 @@ export default function PhotoFrameApp() {
 
     const animatedStyle = useAnimatedStyle(() => {
       return {
-        position: 'absolute',
         left: translateX.value,
         top: translateY.value,
         transform: [
@@ -490,13 +529,9 @@ export default function PhotoFrameApp() {
     });
 
     return (
-      <Animated.View 
+      <Animated.View
         style={[
           styles.stickerWrapper,
-          {
-            left: 0,
-            top: 0,
-          },
           animatedStyle,
         ]}
       >
@@ -533,10 +568,6 @@ export default function PhotoFrameApp() {
             >
               <Text style={styles.deleteButtonText}>✕</Text>
             </TouchableOpacity>
-            {/* Info label untuk menunjukkan stiker bisa dihapus */}
-            <View style={styles.deleteHint}>
-              <Text style={styles.deleteHintText}>Tap ✕ untuk hapus</Text>
-            </View>
           </>
         )}
       </Animated.View>
@@ -545,193 +576,172 @@ export default function PhotoFrameApp() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => setShowPhotoList(true)}
-          style={styles.headerButton}
-        >
-          <Text style={styles.headerButtonText}>📸 Pilih Foto</Text>
-        </TouchableOpacity>
-        {selectedPhoto && (
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
-        )}
-      </View>
 
-      {/* Photo List Modal */}
-      {showPhotoList && (
-        <View style={styles.photoListModal}>
-          <View style={styles.photoListContent}>
-            <View style={styles.photoListHeader}>
-              <Text style={styles.photoListTitle}>Pilih Foto dari Database</Text>
-              <TouchableOpacity onPress={() => setShowPhotoList(false)}>
-                <Text style={styles.closeButtonText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.photoListScroll}>
-              {loading ? (
-                <ActivityIndicator size="large" color="#F7931A" style={styles.loader} />
-              ) : photoList.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>Tidak ada foto ditemukan</Text>
-                  <TouchableOpacity onPress={loadPhotos} style={styles.refreshButton}>
-                    <Text style={styles.refreshButtonText}>Muat Ulang</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                photoList.map((photo) => (
+      {/* Main Content - 3 Column Layout */}
+      <View style={styles.mainContent}>
+        {/* Left Column - Photo Selector */}
+        <View style={styles.photoColumn}>
+          <Text style={styles.photoColumnTitle}>Pilih Foto</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.photoColumnScroll}>
+            {loading ? (
+              <View style={styles.photoListLoading}>
+                <ActivityIndicator size="large" color="#F7931A" />
+              </View>
+            ) : photoList.length === 0 ? (
+              <View style={styles.emptyPhotoList}>
+                <Text style={styles.emptyPhotoListText}>Tidak ada foto</Text>
+                <TouchableOpacity onPress={loadPhotos} style={styles.loadPhotoButton}>
+                  <Text style={styles.loadPhotoButtonText}>Muat Foto</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.photoGridContainer}>
+                {photoList.map((photo) => (
                   <TouchableOpacity
                     key={photo.id}
                     onPress={() => selectPhoto(photo)}
-                    style={styles.photoListItem}
+                    style={[
+                      styles.photoGridItem,
+                      selectedPhoto?.id === photo.id && styles.photoGridItemActive,
+                    ]}
                   >
-                    <View style={styles.photoListItemContent}>
-                      <Image
-                        source={{ uri: photo.link }}
-                        style={styles.photoListThumbnail}
-                      />
-                      <View style={styles.photoListItemInfo}>
-                        <Text style={styles.photoListItemName} numberOfLines={1}>
-                          {photo.name}
-                        </Text>
-                        <Text style={styles.photoListItemPackage} numberOfLines={1}>
-                          {photo.package}
-                        </Text>
-                      </View>
+                    <Image
+                      source={{ uri: photo.link }}
+                      style={styles.photoGridItemImage}
+                    />
+                    <View style={styles.photoGridItemOverlay}>
+                      <Text style={styles.photoGridItemName} numberOfLines={1}>
+                        {photo.name}
+                      </Text>
+                      <Text style={styles.photoGridItemPackage} numberOfLines={1}>
+                        {photo.package}
+                      </Text>
                     </View>
                   </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-            <TouchableOpacity onPress={loadPhotos} style={styles.loadButton}>
-              <Text style={styles.loadButtonText}>
-                {loading ? 'Memuat...' : 'Muat Foto dari Database'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Canvas Area */}
-      <ScrollView
-        contentContainerStyle={styles.canvasContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {!selectedPhoto ? (
-          <View style={styles.emptyCanvas}>
-            <Text style={styles.emptyCanvasText}>Silakan pilih foto dulu</Text>
-            <TouchableOpacity onPress={() => setShowPhotoList(true)} style={styles.selectPhotoButton}>
-              <Text style={styles.selectPhotoButtonText}>📸 Pilih Foto dari Database</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View
-            ref={canvasRef}
-            collapsable={false}
-            style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
-          >
-            {/* Background Photo */}
-            <Image
-              source={{ uri: selectedPhoto.link }}
-              style={styles.backgroundPhoto}
-              resizeMode="cover"
-            />
-
-            {/* Selected Frame */}
-            {selectedFrame && selectedFrame.type === 'svg' && (
-              <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-                {selectedFrame.component(CANVAS_SIZE)}
+                ))}
               </View>
             )}
+          </ScrollView>
+          {photoList.length > 0 && (
+            <TouchableOpacity onPress={loadPhotos} style={styles.refreshPhotoListButton}>
+              <Text style={styles.refreshPhotoListButtonText}>🔄 Muat Ulang</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-            {/* Stickers */}
-            {stickers.map((sticker) => (
-              <StickerItem key={sticker.id} sticker={sticker} />
-            ))}
+        {/* Center Column - Canvas/Preview */}
+        {selectedPhoto && (
+          <View style={styles.centerColumn}>
+            <View
+              ref={canvasRef}
+              collapsable={false}
+              style={[styles.canvas, { width: CANVAS_WIDTH, height: CANVAS_HEIGHT }]}
+            >
+              {/* Background Photo */}
+              <Image
+                source={{ uri: selectedPhoto.link }}
+                style={styles.backgroundPhoto}
+                resizeMode="cover"
+              />
+
+              {/* Selected Frame */}
+              {selectedFrame && selectedFrame.type === 'svg' && (
+                <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+                  {selectedFrame.component(CANVAS_WIDTH)}
+                </View>
+              )}
+
+              {/* Stickers */}
+              {stickers.map((sticker) => (
+                <StickerItem key={sticker.id} sticker={sticker} />
+              ))}
+            </View>
           </View>
         )}
-      </ScrollView>
 
-      {/* Toolbar */}
-      {selectedPhoto && (
-        <View style={styles.toolbar}>
-          {/* Frame Selector */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.toolbarSection}>
-            <Text style={styles.toolbarLabel}>Frame:</Text>
-            {FRAMES.map((frame) => (
-              <TouchableOpacity
-                key={frame.id}
-                onPress={() => addFrame(frame)}
-                style={[
-                  styles.toolbarItem,
-                  selectedFrame?.id === frame.id && styles.toolbarItemActive,
-                ]}
-              >
-                <View style={[styles.toolbarItemFramePreview, { backgroundColor: frame.color }]}>
-                  <View style={styles.toolbarItemFrameInner} />
+        {/* Right Column - Controls */}
+        {selectedPhoto && (
+          <View style={styles.rightColumn}>
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.controlsScroll}>
+              {/* Frame Selector */}
+              <View style={styles.controlSection}>
+                <Text style={styles.controlTitle}>Frame</Text>
+                <View style={styles.frameGrid}>
+                  {FRAMES.map((frame) => (
+                    <TouchableOpacity
+                      key={frame.id}
+                      onPress={() => addFrame(frame)}
+                      style={[
+                        styles.frameItem,
+                        selectedFrame?.id === frame.id && styles.frameItemActive,
+                      ]}
+                    >
+                      <View style={[styles.framePreview, { backgroundColor: frame.color }]}>
+                        <View style={styles.framePreviewInner} />
+                      </View>
+                      <Text style={styles.frameItemText}>{frame.name}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-                <Text style={styles.toolbarItemText}>{frame.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+              </View>
 
-          {/* Sticker Selector */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.toolbarSection}>
-            <Text style={styles.toolbarLabel}>Stiker:</Text>
-            {STICKERS.map((sticker) => (
-              <TouchableOpacity
-                key={sticker.id}
-                onPress={() => addSticker(sticker)}
-                style={styles.toolbarItem}
-              >
-                <Text style={styles.toolbarStickerEmoji}>{sticker.emoji}</Text>
-                <Text style={styles.toolbarItemText}>{sticker.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+              {/* Sticker Selector */}
+              <View style={styles.controlSection}>
+                <Text style={styles.controlTitle}>Stiker</Text>
+                <View style={styles.stickerGrid}>
+                  {STICKERS.map((sticker) => (
+                    <TouchableOpacity
+                      key={sticker.id}
+                      onPress={() => addSticker(sticker)}
+                      style={styles.stickerItem}
+                    >
+                      <Text style={styles.stickerItemEmoji}>{sticker.emoji}</Text>
+                      <Text style={styles.stickerItemText}>{sticker.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
 
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            {/* Clear Frame Button */}
-            {selectedFrame && (
-              <TouchableOpacity
-                onPress={() => setSelectedFrame(null)}
-                style={styles.clearButton}
-              >
-                <Text style={styles.clearButtonText}>🗑️ Hapus Frame</Text>
-              </TouchableOpacity>
-            )}
+              {/* Clear Buttons */}
+              <View style={styles.controlSection}>
+                {selectedFrame && (
+                  <TouchableOpacity
+                    onPress={() => setSelectedFrame(null)}
+                    style={styles.clearButtonSmall}
+                  >
+                    <Text style={styles.clearButtonText}>🗑️ Hapus Frame</Text>
+                  </TouchableOpacity>
+                )}
+
+                {stickers.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setStickers([]);
+                      setActiveStickerId(null);
+                    }}
+                    style={styles.clearButtonSmall}
+                  >
+                    <Text style={styles.clearButtonText}>🗑️ Hapus Semua Stiker</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </ScrollView>
             
-            {/* Clear Stickers Button */}
-            {stickers.length > 0 && (
-              <TouchableOpacity
-                onPress={() => {
-                  setStickers([]);
-                  setActiveStickerId(null);
-                }}
-                style={styles.clearButton}
-              >
-                <Text style={styles.clearButtonText}>🗑️ Hapus Semua Stiker</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Save Button */}
+            {/* Floating Save Button */}
             <TouchableOpacity
               onPress={saveToGallery}
-              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+              style={[styles.floatingSaveButton, saving && styles.floatingSaveButtonDisabled]}
               disabled={saving}
             >
               {saving ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.saveButtonText}>💾 Simpan Hasil</Text>
+                <Text style={styles.floatingSaveButtonText}>💾 Simpan Hasil</Text>
               )}
             </TouchableOpacity>
           </View>
-        </View>
-      )}
+        )}
+      </View>
     </View>
   );
 }
@@ -751,16 +761,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
   },
-  headerButton: {
-    backgroundColor: '#F7931A',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  headerButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+  headerSpacer: {
+    flex: 1,
   },
   closeButton: {
     width: 32,
@@ -1053,11 +1055,10 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: '#F7931A',
-    padding: 16,
+    padding: 12,
     borderRadius: 8,
     alignItems: 'center',
-    flex: 1,
-    minWidth: 150,
+    marginTop: 8,
   },
   saveButtonDisabled: {
     opacity: 0.6,
@@ -1065,6 +1066,239 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#fff',
     fontWeight: '600',
+    fontSize: 14,
+  },
+  floatingSaveButton: {
+    backgroundColor: '#F7931A',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    margin: 8,
+  },
+  floatingSaveButtonDisabled: {
+    opacity: 0.6,
+  },
+  floatingSaveButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  // 2-Column Layout Styles
+  mainContent: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 16,
+    padding: 16,
+  },
+  leftColumn: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  rightColumn: {
+    width: 300,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  controlsScroll: {
+    flex: 1,
+  },
+  controlSection: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  controlTitle: {
     fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 12,
+  },
+  frameGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  frameItem: {
+    flex: 1,
+    minWidth: '45%',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+  },
+  frameItemActive: {
+    backgroundColor: '#FFE5CC',
+    borderWidth: 2,
+    borderColor: '#F7931A',
+  },
+  framePreview: {
+    width: 60,
+    height: 60,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ddd',
+    marginBottom: 4,
+  },
+  framePreviewInner: {
+    width: 36,
+    height: 36,
+    backgroundColor: '#fff',
+    borderRadius: 2,
+  },
+  frameItemText: {
+    fontSize: 11,
+    color: '#666',
+    textAlign: 'center',
+  },
+  stickerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  stickerItem: {
+    flex: 1,
+    minWidth: '45%',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+  },
+  stickerItemEmoji: {
+    fontSize: 32,
+    marginBottom: 4,
+  },
+  stickerItemText: {
+    fontSize: 10,
+    color: '#666',
+    textAlign: 'center',
+  },
+  clearButtonSmall: {
+    backgroundColor: '#FF6B6B',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  // 3-Column Layout Styles
+  photoColumn: {
+    width: 280,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    flexDirection: 'column',
+  },
+  photoColumnTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  photoColumnScroll: {
+    flex: 1,
+  },
+  photoListLoading: {
+    padding: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyPhotoList: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 200,
+  },
+  emptyPhotoListText: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  loadPhotoButton: {
+    backgroundColor: '#F7931A',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  loadPhotoButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  photoGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 8,
+    gap: 8,
+  },
+  photoGridItem: {
+    flex: 1,
+    minWidth: '45%',
+    aspectRatio: 2 / 3,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  photoGridItemActive: {
+    borderColor: '#F7931A',
+    borderWidth: 3,
+  },
+  photoGridItemImage: {
+    width: '100%',
+    height: '100%',
+  },
+  photoGridItemOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 8,
+  },
+  photoGridItemName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  photoGridItemPackage: {
+    fontSize: 9,
+    color: '#ddd',
+  },
+  refreshPhotoListButton: {
+    backgroundColor: '#F7931A',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    margin: 8,
+  },
+  refreshPhotoListButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  centerColumn: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
   },
 });

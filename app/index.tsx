@@ -1,21 +1,9 @@
-/**
- * Homepage - Bitcoin Energy Style
- * 
- * DETAIL SPECIFICATIONS:
- * - Colors: Bitcoin Orange (#F7931A) - bold, energetic
- * - Typography: Bold headings, natural case body
- * - Border Radius: Minimal (6px buttons, 8px cards) - angular Bitcoin style
- * - Shadows: Medium shadows for depth
- * - Buttons: Orange with orange-dark hover (no grey!)
- * - Backgrounds: Alternating cream and white
- */
-
 import { Button, ButtonText } from "@/components/ui/button";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { Stack, useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Dimensions,
   Image,

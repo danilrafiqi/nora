@@ -9,23 +9,22 @@
  * - Smooth animations
  */
 
-import React, { useRef, useState, useEffect } from 'react';
+import { PhotoTransaction } from '@/services/photoService';
+import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  Alert,
   Dimensions,
   Platform,
   Image as RNImage,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import * as MediaLibrary from 'expo-media-library';
-import { PhotoTransaction } from '@/services/photoService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CANVAS_SIZE = Math.min(SCREEN_WIDTH - 32, 600);
@@ -248,10 +247,10 @@ export default function PhotoEditorCanvas() {
       prev.map((s) =>
         s.id === gestureState.stickerId
           ? {
-              ...s,
-              x: Math.max(0, Math.min(s.x + deltaX, CANVAS_SIZE - s.width)),
-              y: Math.max(0, Math.min(s.y + deltaY, CANVAS_SIZE - s.height)),
-            }
+            ...s,
+            x: Math.max(0, Math.min(s.x + deltaX, CANVAS_SIZE - s.width)),
+            y: Math.max(0, Math.min(s.y + deltaY, CANVAS_SIZE - s.height)),
+          }
           : s
       )
     );
@@ -618,10 +617,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
     elevation: 4,
   },
   backgroundPhoto: {

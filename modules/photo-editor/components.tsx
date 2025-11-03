@@ -259,10 +259,6 @@ export const DraggablePhotoListItem: React.FC<DraggablePhotoListItemProps> = ({
                     styles.photoGridItemWrapper,
                     animatedStyle,
                     isDragging && {
-                        shadowColor: '#F7931A',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.8,
-                        shadowRadius: 8,
                         elevation: 10,
                         zIndex: 1000,
                     },
@@ -391,11 +387,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 2,
         borderColor: '#fff',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 3,
-        elevation: 5,
         zIndex: 1000,
     },
     deleteButtonText: {

@@ -2,7 +2,7 @@
  * Types untuk Photo Editor
  */
 
-import React from 'react';
+import type React from 'react';
 
 export type FrameType = {
   id: string;

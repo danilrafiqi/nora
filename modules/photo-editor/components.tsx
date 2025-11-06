@@ -3,61 +3,89 @@
  */
 
 import { PhotoTransaction } from '@/services/photoService';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import Svg, { Path, Rect } from 'react-native-svg';
+import { SvgUri } from 'react-native-svg';
+import { getFrameUrl } from '@/services/frameService';
 import { PhotoTransform, StickerData } from './types';
 
 // ============ FRAME COMPONENTS ============
 
+// Base Frame Component that loads URL dynamically
+const FrameComponent = ({
+  frameId,
+  size,
+  color
+}: {
+  frameId: string;
+  size: number;
+  color: string
+}) => {
+  const [frameUrl, setFrameUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadFrameUrl = async () => {
+      try {
+        setLoading(true);
+        const url = await getFrameUrl(frameId);
+        setFrameUrl(url);
+        setError(null);
+      } catch (err) {
+        console.error(`Failed to load frame ${frameId}:`, err);
+        setError('Failed to load frame');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFrameUrl();
+  }, [frameId]);
+
+  if (loading) {
+    return (
+      <View style={[StyleSheet.absoluteFillObject, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: color, fontSize: 12 }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (error || !frameUrl) {
+    return (
+      <View style={[StyleSheet.absoluteFillObject, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: color, fontSize: 12 }}>Frame unavailable</Text>
+      </View>
+    );
+  }
+
+  return (
+    <SvgUri
+      uri={frameUrl}
+      width={size}
+      height={size}
+      style={StyleSheet.absoluteFillObject}
+      color={color}
+    />
+  );
+};
+
 export const SimpleBorderFrame = ({ size, color }: { size: number; color: string }) => (
-    <Svg width={size} height={size} style={StyleSheet.absoluteFillObject}>
-        <Rect x="0" y="0" width={size} height={size} fill="transparent" />
-        <Rect x="0" y="0" width={size} height="20" fill={color} />
-        <Rect x="0" y="0" width="20" height={size} fill={color} />
-        <Rect x={size - 20} y="0" width="20" height={size} fill={color} />
-        <Rect x="0" y={size - 20} width={size} height="20" fill={color} />
-    </Svg>
+  <FrameComponent frameId="simple" size={size} color={color} />
 );
 
 export const DoubleBorderFrame = ({ size, color }: { size: number; color: string }) => (
-    <Svg width={size} height={size} style={StyleSheet.absoluteFillObject}>
-        <Rect x="0" y="0" width={size} height={size} fill="transparent" />
-        <Rect x="0" y="0" width={size} height="30" fill={color} />
-        <Rect x="0" y="0" width="30" height={size} fill={color} />
-        <Rect x={size - 30} y="0" width="30" height={size} fill={color} />
-        <Rect x="0" y={size - 30} width={size} height="30" fill={color} />
-        <Rect x="15" y="15" width={size - 30} height="10" fill={color} opacity={0.7} />
-        <Rect x="15" y="15" width="10" height={size - 30} fill={color} opacity={0.7} />
-        <Rect x={size - 25} y="15" width="10" height={size - 30} fill={color} opacity={0.7} />
-        <Rect x="15" y={size - 25} width={size - 30} height="10" fill={color} opacity={0.7} />
-    </Svg>
+  <FrameComponent frameId="double" size={size} color={color} />
 );
 
 export const DecorativeFrame = ({ size, color }: { size: number; color: string }) => (
-    <Svg width={size} height={size} style={StyleSheet.absoluteFillObject}>
-        <Rect x="0" y="0" width={size} height={size} fill="transparent" />
-        <Path d={`M 0,0 L 0,40 L 40,0 Z`} fill={color} />
-        <Path d={`M ${size},0 L ${size},40 L ${size - 40},0 Z`} fill={color} />
-        <Path d={`M 0,${size} L 0,${size - 40} L 40,${size} Z`} fill={color} />
-        <Path d={`M ${size},${size} L ${size},${size - 40} L ${size - 40},${size} Z`} fill={color} />
-        <Rect x="0" y="0" width={size} height="25" fill={color} opacity={0.6} />
-        <Rect x="0" y="0" width="25" height={size} fill={color} opacity={0.6} />
-        <Rect x={size - 25} y="0" width="25" height={size} fill={color} opacity={0.6} />
-        <Rect x="0" y={size - 25} width={size} height="25" fill={color} opacity={0.6} />
-    </Svg>
+  <FrameComponent frameId="decorative" size={size} color={color} />
 );
 
 export const RoundedFrame = ({ size, color }: { size: number; color: string }) => (
-    <Svg width={size} height={size} style={StyleSheet.absoluteFillObject}>
-        <Rect x="0" y="0" width={size} height={size} fill="transparent" />
-        <Rect x="0" y="0" width={size} height="20" fill={color} rx="5" />
-        <Rect x="0" y="0" width="20" height={size} fill={color} rx="5" />
-        <Rect x={size - 20} y="0" width="20" height={size} fill={color} rx="5" />
-        <Rect x="0" y={size - 20} width={size} height="20" fill={color} rx="5" />
-    </Svg>
+  <FrameComponent frameId="rounded" size={size} color={color} />
 );
 
 // ============ STICKER ITEM COMPONENT ============

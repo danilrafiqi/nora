@@ -65,9 +65,10 @@ const FrameComponent = ({
     <SvgUri
       uri={frameUrl}
       width={size}
-      height={size}
+      height={size * 1.5}
       style={StyleSheet.absoluteFillObject}
       color={color}
+      preserveAspectRatio="xMidYMid slice"
     />
   );
 };

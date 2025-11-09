@@ -392,14 +392,34 @@ export default function PhotoFrameApp() {
 
   // Render canvas manually untuk export (memastikan frame dan stiker tersimpan)
   const renderCanvasForExport = async (): Promise<HTMLCanvasElement | null> => {
-    if (!selectedPhoto || !selectedLayout || Platform.OS !== 'web') return null;
+    console.log('renderCanvasForExport called');
+    console.log('selectedPhoto:', !!selectedPhoto);
+    console.log('selectedLayout:', !!selectedLayout);
+    console.log('Platform.OS:', Platform.OS);
+
+    // Check if we have valid content to export
+    const isGrid = selectedLayout && (selectedLayout.cols > 1 || selectedLayout.rows > 1);
+    const hasPhotosInGrid = isGrid && gridCells.some(cell => cell.photoId);
+    const hasSelectedPhoto = !!selectedPhoto;
+
+    if (!selectedLayout || Platform.OS !== 'web') {
+      console.log('Early return: no layout or not web platform');
+      return null;
+    }
+
+    if (!hasSelectedPhoto && !hasPhotosInGrid) {
+      console.log('Early return: no photos to export');
+      return null;
+    }
 
     return new Promise((resolve) => {
+      console.log('Creating canvas with dimensions:', EXPORT_WIDTH, EXPORT_HEIGHT);
       const canvas = document.createElement('canvas') as HTMLCanvasElement;
       canvas.width = EXPORT_WIDTH;
       canvas.height = EXPORT_HEIGHT;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
+        console.log('Failed to get canvas context');
         resolve(null);
         return;
       }
@@ -407,7 +427,7 @@ export default function PhotoFrameApp() {
       // Helper function untuk draw foto dengan support transforms
       const drawPhoto = (photoLink: string, x: number, y: number, width: number, height: number, photoId?: string) => {
         return new Promise<void>((photoResolve) => {
-          const img = new (window as any).Image();
+          const img = document.createElement('img') as HTMLImageElement;
           img.crossOrigin = 'anonymous';
           img.onload = () => {
             // Get photo transform jika ada
@@ -437,8 +457,10 @@ export default function PhotoFrameApp() {
 
       // Define drawFrameAndStickers sebelum di-call
       const drawFrameAndStickers = () => {
+        console.log('drawFrameAndStickers called');
         // 2. Draw frame (SVG) - render as colored rectangles
         if (selectedFrame && selectedFrame.type === 'svg') {
+          console.log('Drawing frame:', selectedFrame.color);
           const frameColor = selectedFrame.color;
           const borderWidth = (EXPORT_WIDTH * 20) / CANVAS_WIDTH; // Scale border width
 
@@ -455,6 +477,7 @@ export default function PhotoFrameApp() {
         }
 
         // 3. Draw stickers
+        console.log('Drawing stickers:', stickers.length);
         stickers.forEach((sticker) => {
           if (sticker.emoji) {
             const fontSize = Math.round((EXPORT_WIDTH * 60) / CANVAS_WIDTH);
@@ -470,18 +493,22 @@ export default function PhotoFrameApp() {
           }
         });
 
+        console.log('Canvas rendering complete, resolving');
         resolve(canvas);
       };
 
       // Determine apakah grid atau single photo
       const isGrid = selectedLayout && (selectedLayout.cols > 1 || selectedLayout.rows > 1);
+      console.log('isGrid:', isGrid);
 
       if (isGrid && selectedLayout) {
+        console.log('Rendering grid layout');
         // Multi-cell grid: draw semua cells dengan foto masing-masing
         const cellWidth = EXPORT_WIDTH / selectedLayout.cols;
         const cellHeight = EXPORT_HEIGHT / selectedLayout.rows;
         let photoLoadCount = 0;
         const totalCells = gridCells.length;
+        console.log('Grid cells:', totalCells);
 
         gridCells.forEach((cell, idx) => {
           const col = idx % selectedLayout.cols;
@@ -494,27 +521,36 @@ export default function PhotoFrameApp() {
             : selectedPhoto;
 
           if (cellPhoto) {
+            console.log('Drawing photo for cell', idx, cellPhoto.link);
             drawPhoto(cellPhoto.link, x, y, cellWidth, cellHeight).then(() => {
               photoLoadCount++;
+              console.log('Photo loaded for cell', idx, photoLoadCount, '/', totalCells);
               if (photoLoadCount === totalCells) {
                 // Semua foto selesai di-draw, sekarang draw frame dan stickers
+                console.log('All photos loaded, drawing frame and stickers');
                 drawFrameAndStickers();
               }
             });
           } else {
             photoLoadCount++;
+            console.log('Empty cell', idx, photoLoadCount, '/', totalCells);
             if (photoLoadCount === totalCells) {
+              console.log('All cells processed, drawing frame and stickers');
               drawFrameAndStickers();
             }
           }
         });
       } else {
+        console.log('Rendering single photo layout');
         // Single photo: draw dengan transforms
         if (selectedPhoto) {
+          console.log('Drawing single photo:', selectedPhoto.link);
           drawPhoto(selectedPhoto.link, 0, 0, EXPORT_WIDTH, EXPORT_HEIGHT, selectedPhoto.id).then(() => {
+            console.log('Single photo loaded, drawing frame and stickers');
             drawFrameAndStickers();
           });
         } else {
+          console.log('No photo selected, drawing frame and stickers only');
           drawFrameAndStickers();
         }
       }
@@ -522,8 +558,23 @@ export default function PhotoFrameApp() {
   };
 
   const saveToGallery = async () => {
-    if (!selectedPhoto) {
-      Alert.alert('Error', 'Silakan pilih foto dulu');
+    console.log('saveToGallery called');
+    console.log('selectedPhoto:', selectedPhoto);
+    console.log('selectedLayout:', selectedLayout);
+    console.log('Platform.OS:', Platform.OS);
+
+    // Check if we have photos to save
+    const isGrid = selectedLayout && (selectedLayout.cols > 1 || selectedLayout.rows > 1);
+    const hasPhotosInGrid = isGrid && gridCells.some(cell => cell.photoId);
+    const hasSelectedPhoto = !!selectedPhoto;
+
+    if (!hasSelectedPhoto && !hasPhotosInGrid) {
+      Alert.alert('Error', 'Silakan pilih foto dulu atau letakkan foto di grid');
+      return;
+    }
+
+    if (!selectedLayout) {
+      Alert.alert('Error', 'Silakan pilih layout dulu');
       return;
     }
 
@@ -533,15 +584,19 @@ export default function PhotoFrameApp() {
       await new Promise(resolve => setTimeout(resolve, 500));
 
       if (Platform.OS === 'web') {
+        console.log('Using web export method');
         // Web: Render canvas manually untuk memastikan frame dan stiker tersimpan
         try {
           const exportCanvas = await renderCanvasForExport();
+          console.log('exportCanvas:', exportCanvas);
+
           if (!exportCanvas) {
             throw new Error('Gagal render canvas');
           }
 
           // Convert to blob and download
           exportCanvas.toBlob((blob: Blob | null) => {
+            console.log('toBlob callback called, blob:', blob);
             if (blob) {
               const url = URL.createObjectURL(blob);
               const link = document.createElement('a');

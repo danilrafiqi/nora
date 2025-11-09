@@ -359,6 +359,88 @@ export default function PhotoFrameApp() {
     }
   }, []);
 
+  const compressImage = (imageUri: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      // Only compress on web platform where canvas is available
+      if (Platform.OS !== 'web') {
+        resolve(imageUri); // Return original URI for native platforms
+        return;
+      }
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          // Calculate new dimensions (max 800px on longest side for better compression)
+          const maxDimension = 800;
+          let { width, height } = img;
+
+          if (width > height) {
+            if (width > maxDimension) {
+              height = (height * maxDimension) / width;
+              width = maxDimension;
+            }
+          } else {
+            if (height > maxDimension) {
+              width = (width * maxDimension) / height;
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          // Draw image to canvas
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Try different quality levels until file size is under 20KB
+          const compressWithQuality = (quality: number): string | null => {
+            canvas.toBlob((blob) => {
+              if (!blob) {
+                reject(new Error('Failed to compress image'));
+                return;
+              }
+
+              // Check if blob size is under 20KB (20480 bytes)
+              if (blob.size <= 20480) {
+                // Convert blob to data URL
+                const reader = new FileReader();
+                reader.onload = () => {
+                  resolve(reader.result as string);
+                };
+                reader.onerror = () => reject(new Error('Failed to read compressed image'));
+                reader.readAsDataURL(blob);
+              } else if (quality > 0.1) {
+                // Try lower quality
+                compressWithQuality(quality - 0.1);
+              } else {
+                // If still too big even at lowest quality, use current result
+                const reader = new FileReader();
+                reader.onload = () => {
+                  resolve(reader.result as string);
+                };
+                reader.onerror = () => reject(new Error('Failed to read compressed image'));
+                reader.readAsDataURL(blob);
+              }
+            }, 'image/jpeg', quality);
+            return null;
+          };
+
+          // Start with quality 0.8, will decrease if needed
+          compressWithQuality(0.8);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      img.onerror = () => reject(new Error('Failed to load image for compression'));
+      img.src = imageUri;
+    });
+  };
+
   // Function to pick images from device gallery
   const pickImagesFromGallery = async () => {
     try {
@@ -379,21 +461,49 @@ export default function PhotoFrameApp() {
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        // Convert selected images to PhotoTransaction format
-        const selectedPhotos: PhotoTransaction[] = result.assets.map((asset, index) => ({
-          id: `local_${Date.now()}_${index}`,
-          name: asset.fileName || `Local Photo ${index + 1}`,
-          phone: 'local', // Indicate this is a local photo
-          package: 'Local File',
-          link: asset.uri,
-          created_at: new Date().toISOString(),
-        }));
+        setLoading(true);
+        try {
+          // Compress each image to under 20KB
+          const compressedPhotos: PhotoTransaction[] = [];
 
-        // Add to existing photoList
-        setPhotoList(prev => [...prev, ...selectedPhotos]);
-        setShowPhotoList(true);
+          for (const asset of result.assets) {
+            try {
+              console.log(`Compressing image: ${asset.fileName || 'unnamed'}`);
+              const compressedUri = await compressImage(asset.uri);
 
-        Alert.alert('Berhasil', `${selectedPhotos.length} foto berhasil ditambahkan`);
+              compressedPhotos.push({
+                id: `local_${Date.now()}_${compressedPhotos.length}`,
+                name: asset.fileName || `Local Photo ${compressedPhotos.length + 1}`,
+                phone: 'local',
+                package: 'Local File',
+                link: compressedUri,
+                created_at: new Date().toISOString(),
+              });
+            } catch (compressError) {
+              console.warn('Failed to compress image, using original:', compressError);
+              // Fallback to original if compression fails
+              compressedPhotos.push({
+                id: `local_${Date.now()}_${compressedPhotos.length}`,
+                name: asset.fileName || `Local Photo ${compressedPhotos.length + 1}`,
+                phone: 'local',
+                package: 'Local File',
+                link: asset.uri,
+                created_at: new Date().toISOString(),
+              });
+            }
+          }
+
+          // Add to existing photoList
+          setPhotoList(prev => [...prev, ...compressedPhotos]);
+          setShowPhotoList(true);
+
+          Alert.alert('Berhasil', `${compressedPhotos.length} foto berhasil ditambahkan dan dikompresi`);
+        } catch (error) {
+          console.error('Compression error:', error);
+          Alert.alert('Error', 'Gagal mengkompresi foto');
+        } finally {
+          setLoading(false);
+        }
       }
     } catch (error: any) {
       console.error('Error picking images:', error);
@@ -413,20 +523,45 @@ export default function PhotoFrameApp() {
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        const asset = result.assets[0];
-        const selectedPhoto: PhotoTransaction = {
-          id: `local_file_${Date.now()}`,
-          name: asset.fileName || 'Local File Photo',
-          phone: 'local_file',
-          package: 'File Picker',
-          link: asset.uri,
-          created_at: new Date().toISOString(),
-        };
+        setLoading(true);
+        try {
+          const asset = result.assets[0];
+          console.log(`Compressing single image: ${asset.fileName || 'unnamed'}`);
+          const compressedUri = await compressImage(asset.uri);
 
-        setPhotoList(prev => [...prev, selectedPhoto]);
-        setShowPhotoList(true);
+          const selectedPhoto: PhotoTransaction = {
+            id: `local_file_${Date.now()}`,
+            name: asset.fileName || 'Local File Photo',
+            phone: 'local_file',
+            package: 'File Picker',
+            link: compressedUri,
+            created_at: new Date().toISOString(),
+          };
 
-        Alert.alert('Berhasil', 'Foto berhasil ditambahkan dari file');
+          setPhotoList(prev => [...prev, selectedPhoto]);
+          setShowPhotoList(true);
+
+          Alert.alert('Berhasil', 'Foto berhasil ditambahkan dan dikompresi');
+        } catch (compressError) {
+          console.warn('Failed to compress image, using original:', compressError);
+          // Fallback to original if compression fails
+          const asset = result.assets[0];
+          const selectedPhoto: PhotoTransaction = {
+            id: `local_file_${Date.now()}`,
+            name: asset.fileName || 'Local File Photo',
+            phone: 'local_file',
+            package: 'File Picker',
+            link: asset.uri,
+            created_at: new Date().toISOString(),
+          };
+
+          setPhotoList(prev => [...prev, selectedPhoto]);
+          setShowPhotoList(true);
+
+          Alert.alert('Berhasil', 'Foto berhasil ditambahkan dari file (kompresi gagal, menggunakan asli)');
+        } finally {
+          setLoading(false);
+        }
       }
     } catch (error: any) {
       console.error('Error picking image file:', error);

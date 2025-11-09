@@ -258,12 +258,12 @@ const styles = StyleSheet.create({
         position: 'relative',
     },
     photoGridItem: {
-        width: 80,
-        height: 80,
-        borderRadius: 8,
+        width: 40,
+        height: 40,
+        borderRadius: 4,
         overflow: 'hidden',
         backgroundColor: '#F5F5F5',
-        borderWidth: 2,
+        borderWidth: 1,
         borderColor: 'transparent',
     },
     photoGridItemDragging: {

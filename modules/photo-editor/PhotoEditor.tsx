@@ -448,7 +448,13 @@ export default function PhotoFrameApp() {
 
           for (const asset of result.assets) {
             try {
+              console.log(`Processing image: ${asset.fileName}, original size: ${asset.fileSize || 'unknown'}`);
               const compressedUri = await compressImage(asset.uri, 50);
+
+              // Calculate compressed size (rough estimate from data URL)
+              const compressedSizeKB = Math.round((compressedUri.length * 3) / 4 / 1024);
+              console.log(`Compressed size: ~${compressedSizeKB}KB`);
+
               processedPhotos.push({
                 id: `local_${Date.now()}_${processedPhotos.length}`,
                 name: asset.fileName || `Local Photo ${processedPhotos.length + 1}`,
@@ -458,6 +464,7 @@ export default function PhotoFrameApp() {
                 created_at: new Date().toISOString(),
               });
             } catch (error) {
+              console.warn('Compression failed, using original:', error);
               // Fallback to original if compression fails
               processedPhotos.push({
                 id: `local_${Date.now()}_${processedPhotos.length}`,

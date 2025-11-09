@@ -258,8 +258,8 @@ const styles = StyleSheet.create({
         position: 'relative',
     },
     photoGridItem: {
-        width: 40,
-        height: 40,
+        width: 80,
+        height: 80,
         borderRadius: 4,
         overflow: 'hidden',
         backgroundColor: '#F5F5F5',

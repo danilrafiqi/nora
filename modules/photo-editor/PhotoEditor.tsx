@@ -359,61 +359,85 @@ export default function PhotoFrameApp() {
     }
   }, []);
 
-  const compressImage = (imageUri: string, maxSizeKB: number = 50): Promise<string> => {
+  const compressImage = (imageUri: string, maxSizeKB: number = 20): Promise<string> => {
     return new Promise((resolve, reject) => {
       if (Platform.OS !== 'web') {
         resolve(imageUri); // Skip compression on native platforms
         return;
       }
 
-      const img = new Image();
+      const img = document.createElement('img') as HTMLImageElement;
       img.crossOrigin = 'anonymous';
 
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+        const compressWithQuality = (quality: number, maxDimension: number): Promise<string> => {
+          return new Promise((resolveCompress) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
 
-        // Calculate new dimensions (max 1200px on longest side)
-        const maxDimension = 1200;
-        let { width, height } = img;
+            // Calculate new dimensions - more aggressive resizing for compression
+            let { width, height } = img;
+            const aspectRatio = width / height;
 
-        if (width > height) {
-          if (width > maxDimension) {
-            height = (height * maxDimension) / width;
-            width = maxDimension;
-          }
-        } else {
-          if (height > maxDimension) {
-            width = (width * maxDimension) / height;
-            height = maxDimension;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        // Draw and compress
-        ctx?.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob((blob) => {
-          if (blob && blob.size <= maxSizeKB * 1024) {
-            // Already under target size
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          } else {
-            // Try with lower quality
-            canvas.toBlob((compressedBlob) => {
-              if (compressedBlob) {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.readAsDataURL(compressedBlob);
-              } else {
-                resolve(imageUri); // Fallback to original
+            if (width > height) {
+              if (width > maxDimension) {
+                width = maxDimension;
+                height = width / aspectRatio;
               }
-            }, 'image/jpeg', 0.7);
-          }
-        }, 'image/jpeg', 0.9);
+            } else {
+              if (height > maxDimension) {
+                height = maxDimension;
+                width = height * aspectRatio;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            // Draw and compress
+            ctx?.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => {
+              if (blob && blob.size <= maxSizeKB * 1024) {
+                // Success - under target size
+                const reader = new FileReader();
+                reader.onload = () => resolveCompress(reader.result as string);
+                reader.readAsDataURL(blob);
+              } else {
+                resolveCompress(null); // Try next option
+              }
+            }, 'image/jpeg', quality);
+          });
+        };
+
+        // Try different compression strategies in order
+        const tryCompression = async (): Promise<string> => {
+          // Strategy 1: High quality with moderate resize (800px max)
+          let result = await compressWithQuality(0.8, 800);
+          if (result) return result;
+
+          // Strategy 2: Medium quality with moderate resize (600px max)
+          result = await compressWithQuality(0.6, 600);
+          if (result) return result;
+
+          // Strategy 3: Lower quality with smaller resize (400px max)
+          result = await compressWithQuality(0.4, 400);
+          if (result) return result;
+
+          // Strategy 4: Very low quality with small resize (300px max)
+          result = await compressWithQuality(0.2, 300);
+          if (result) return result;
+
+          // Strategy 5: Minimum quality with tiny resize (200px max)
+          result = await compressWithQuality(0.1, 200);
+          if (result) return result;
+
+          // Final fallback: return original if all compression fails
+          console.warn('All compression strategies failed, returning original image');
+          return imageUri;
+        };
+
+        tryCompression().then(resolve).catch(() => resolve(imageUri));
       };
 
       img.onerror = () => resolve(imageUri); // Fallback to original
@@ -433,7 +457,7 @@ export default function PhotoFrameApp() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsMultipleSelection: true,
         quality: 0.8,
         aspect: undefined,
@@ -443,13 +467,13 @@ export default function PhotoFrameApp() {
       if (!result.canceled && result.assets.length > 0) {
         setLoading(true);
         try {
-          // Compress images to under 50KB for better performance
+          // Compress images to under 20KB for better performance
           const processedPhotos: PhotoTransaction[] = [];
 
           for (const asset of result.assets) {
             try {
               console.log(`Processing image: ${asset.fileName}, original size: ${asset.fileSize || 'unknown'}`);
-              const compressedUri = await compressImage(asset.uri, 50);
+              const compressedUri = await compressImage(asset.uri, 20);
 
               // Calculate compressed size (rough estimate from data URL)
               const compressedSizeKB = Math.round((compressedUri.length * 3) / 4 / 1024);
@@ -498,7 +522,7 @@ export default function PhotoFrameApp() {
   const pickImageFromFile = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsMultipleSelection: false,
         quality: 0.8,
         aspect: undefined,
@@ -509,7 +533,7 @@ export default function PhotoFrameApp() {
         setLoading(true);
         try {
           const asset = result.assets[0];
-          const compressedUri = await compressImage(asset.uri, 50);
+          const compressedUri = await compressImage(asset.uri, 20);
 
           const selectedPhoto: PhotoTransaction = {
             id: `local_file_${Date.now()}`,

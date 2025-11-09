@@ -4,12 +4,16 @@
 
 import { PhotoTransaction } from '@/services/photoService';
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { SvgUri } from 'react-native-svg';
 import { getFrameUrl } from '@/services/frameService';
 import { PhotoTransform, StickerData } from './types';
+
+// Image loading concurrency limiter - removed for better UX
+// let activeImageLoads = 0;
+// const MAX_CONCURRENT_LOADS = 5;
 
 // ============ FRAME COMPONENTS ============
 
@@ -89,134 +93,6 @@ export const RoundedFrame = ({ size, color }: { size: number; color: string }) =
   <FrameComponent frameId="rounded" size={size} color={color} />
 );
 
-// ============ STICKER ITEM COMPONENT ============
-
-interface StickerItemProps {
-    sticker: StickerData;
-    isActive: boolean;
-    onDelete: (id: string) => void;
-    onSetActive: (id: string) => void;
-    setStickers: (stickers: StickerData[]) => void;
-}
-
-export const StickerItem: React.FC<StickerItemProps> = ({
-    sticker,
-    isActive,
-    onDelete,
-    onSetActive,
-    setStickers,
-}) => {
-    const translateX = useSharedValue(sticker.x);
-    const translateY = useSharedValue(sticker.y);
-    const scale = useSharedValue(sticker.scale);
-    const rotation = useSharedValue(sticker.rotation);
-
-    React.useEffect(() => {
-        translateX.value = sticker.x;
-        translateY.value = sticker.y;
-        scale.value = sticker.scale;
-        rotation.value = sticker.rotation;
-    }, [sticker.id]);
-
-    const panGestureWithTap = Gesture.Pan()
-        .minDistance(5)
-        .onStart(() => {
-            translateX.value = sticker.x;
-            translateY.value = sticker.y;
-            onSetActive(sticker.id);
-        })
-        .onUpdate((e) => {
-            translateX.value = sticker.x + e.translationX;
-            translateY.value = sticker.y + e.translationY;
-        })
-        .onEnd((e) => {
-            const newX = sticker.x + e.translationX;
-            const newY = sticker.y + e.translationY;
-            runOnJS(setStickers)(prev => prev.map(s =>
-                s.id === sticker.id ? { ...s, x: newX, y: newY } : s
-            ) as any);
-        });
-
-    const tapGesture = Gesture.Tap()
-        .numberOfTaps(1)
-        .maxDuration(250)
-        .onEnd(() => onSetActive(sticker.id));
-
-    const pinchWithActivate = Gesture.Pinch()
-        .onStart(() => {
-            scale.value = sticker.scale;
-            onSetActive(sticker.id);
-        })
-        .onUpdate((e) => {
-            scale.value = sticker.scale * e.scale;
-        })
-        .onEnd((e) => {
-            const newScale = sticker.scale * e.scale;
-            runOnJS(setStickers)(prev => prev.map(s =>
-                s.id === sticker.id ? { ...s, scale: newScale } : s
-            ) as any);
-        });
-
-    const rotateWithActivate = Gesture.Rotation()
-        .onStart(() => {
-            rotation.value = sticker.rotation;
-            onSetActive(sticker.id);
-        })
-        .onUpdate((e) => {
-            rotation.value = sticker.rotation + e.rotation;
-        })
-        .onEnd((e) => {
-            const newRotation = sticker.rotation + e.rotation;
-            runOnJS(setStickers)(prev => prev.map(s =>
-                s.id === sticker.id ? { ...s, rotation: newRotation } : s
-            ) as any);
-        });
-
-    const composedGesture = Gesture.Race(
-        tapGesture,
-        Gesture.Simultaneous(
-            panGestureWithTap,
-            Gesture.Simultaneous(pinchWithActivate, rotateWithActivate)
-        )
-    );
-
-    const animatedStyle = useAnimatedStyle(() => ({
-        left: translateX.value,
-        top: translateY.value,
-        transform: [
-            { scale: scale.value },
-            { rotate: `${rotation.value}rad` },
-        ],
-    }));
-
-    return (
-        <Animated.View style={[styles.stickerWrapper, animatedStyle]}>
-            <GestureDetector gesture={composedGesture}>
-                <Pressable onPress={() => onSetActive(sticker.id)} style={styles.stickerPressable}>
-                    <Animated.View style={[styles.stickerContainer, isActive && styles.activeSticker]}>
-                        {sticker.emoji ? (
-                            <Text style={styles.stickerEmoji}>{sticker.emoji}</Text>
-                        ) : sticker.uri ? (
-                            <Image source={{ uri: sticker.uri }} style={styles.stickerImage} resizeMode="contain" />
-                        ) : (
-                            <Text style={styles.stickerEmoji}>🎨</Text>
-                        )}
-                    </Animated.View>
-                </Pressable>
-            </GestureDetector>
-            {isActive && (
-                <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => onDelete(sticker.id)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                    <Text style={styles.deleteButtonText}>✕</Text>
-                </TouchableOpacity>
-            )}
-        </Animated.View>
-    );
-};
-
 // ============ DRAGGABLE PHOTO FROM LIST ============
 
 interface DraggablePhotoListItemProps {
@@ -227,7 +103,7 @@ interface DraggablePhotoListItemProps {
     onDrop: (photoId: string, x: number, y: number) => void;
 }
 
-export const DraggablePhotoListItem: React.FC<DraggablePhotoListItemProps> = ({
+export const DraggablePhotoListItem: React.FC<DraggablePhotoListItemProps> = React.memo(({
     photo,
     isDragging,
     onDragStart,
@@ -236,8 +112,6 @@ export const DraggablePhotoListItem: React.FC<DraggablePhotoListItemProps> = ({
 }) => {
     const translateX = useSharedValue(0);
     const translateY = useSharedValue(0);
-    const startX = useSharedValue(0);
-    const startY = useSharedValue(0);
 
     // Reset position when dragging ends
     React.useEffect(() => {
@@ -272,6 +146,7 @@ export const DraggablePhotoListItem: React.FC<DraggablePhotoListItemProps> = ({
 
     const composedGesture = panGesture;
 
+    // Memoize animated style to prevent unnecessary recalculations
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [
             { translateX: translateX.value },
@@ -279,7 +154,7 @@ export const DraggablePhotoListItem: React.FC<DraggablePhotoListItemProps> = ({
             { scale: isDragging ? 1.05 : 1 },
         ],
         opacity: isDragging ? 0.8 : 1,
-    }));
+    }), [isDragging]); // Only recalculate when isDragging changes
 
     return (
         <GestureDetector gesture={composedGesture}>
@@ -302,25 +177,13 @@ export const DraggablePhotoListItem: React.FC<DraggablePhotoListItemProps> = ({
                     <Image
                         source={{ uri: photo.link }}
                         style={styles.photoGridItemImage}
+                        resizeMode="cover"
                     />
-                    <View style={styles.photoGridItemOverlay}>
-                        <Text style={styles.photoGridItemName} numberOfLines={1}>
-                            {photo.name}
-                        </Text>
-                        <Text style={styles.photoGridItemPackage} numberOfLines={1}>
-                            {photo.package}
-                        </Text>
-                        {isDragging && (
-                            <Text style={{ fontSize: 10, color: '#FFE5CC', fontWeight: 'bold', marginTop: 4 }}>
-                                🎯 Drag to any grid cell (replace existing photos)
-                            </Text>
-                        )}
-                    </View>
                 </View>
             </Animated.View>
         </GestureDetector>
     );
-};
+});
 
 // ============ DRAGGABLE PHOTO IN CANVAS ============
 
@@ -339,14 +202,19 @@ export const DraggablePhoto: React.FC<DraggablePhotoProps> = ({
     getPhotoTransform,
     updatePhotoTransform,
 }) => {
-    const transform = getPhotoTransform(photo.id);
-    const translateX = useSharedValue(transform?.x ?? 0);
-    const translateY = useSharedValue(transform?.y ?? 0);
+    const currentTransform = getPhotoTransform(photo.id);
+    // Store initial transform values to avoid recalculation during drag
+    const initialX = currentTransform?.x ?? 0;
+    const initialY = currentTransform?.y ?? 0;
+
+    const translateX = useSharedValue(initialX);
+    const translateY = useSharedValue(initialY);
 
     const panGesture = Gesture.Pan()
         .onUpdate((e) => {
-            translateX.value = (transform?.x ?? 0) + e.translationX;
-            translateY.value = (transform?.y ?? 0) + e.translationY;
+            // Use stored initial values + translation
+            translateX.value = initialX + e.translationX;
+            translateY.value = initialY + e.translationY;
         })
         .onEnd(() => {
             runOnJS(updatePhotoTransform)(photo.id, {
@@ -385,65 +253,18 @@ export const DraggablePhoto: React.FC<DraggablePhotoProps> = ({
 // ============ STYLES ============
 
 const styles = StyleSheet.create({
-    stickerWrapper: {
-        position: 'absolute',
-        zIndex: 10,
-    },
-    stickerPressable: {
-        width: 100,
-        height: 100,
-    },
-    stickerContainer: {
-        width: '100%',
-        height: '100%',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    activeSticker: {
-        borderWidth: 2,
-        borderColor: '#F7931A',
-        borderRadius: 4,
-    },
-    deleteButton: {
-        position: 'absolute',
-        top: -10,
-        right: -10,
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: '#FF4444',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#fff',
-        zIndex: 1000,
-    },
-    deleteButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-        lineHeight: 18,
-    },
-    stickerImage: {
-        width: '100%',
-        height: '100%',
-    },
-    stickerEmoji: {
-        fontSize: 60,
-    },
     // Photo list item styles
     photoGridItemWrapper: {
         position: 'relative',
     },
     photoGridItem: {
-        flexDirection: 'row',
+        width: 80,
         height: 80,
         borderRadius: 8,
         overflow: 'hidden',
         backgroundColor: '#F5F5F5',
         borderWidth: 2,
         borderColor: 'transparent',
-        alignItems: 'center',
     },
     photoGridItemDragging: {
         borderWidth: 3,
@@ -451,23 +272,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFE5CC',
     },
     photoGridItemImage: {
-        width: 80,
-        height: 80,
-    },
-    photoGridItemOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        padding: 12,
-        justifyContent: 'center',
-    },
-    photoGridItemName: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#fff',
-        marginBottom: 2,
-    },
-    photoGridItemPackage: {
-        fontSize: 11,
-        color: '#ddd',
+        width: '100%',
+        height: '100%',
     },
 });

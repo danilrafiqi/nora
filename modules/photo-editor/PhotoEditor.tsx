@@ -33,6 +33,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
+import * as ImagePicker from 'expo-image-picker';
 import {
   DecorativeFrame,
   DoubleBorderFrame,
@@ -51,7 +52,6 @@ const EXPORT_HEIGHT = 1800; // 152mm @ 300 DPI
 // Base canvas size untuk single photo (1x1 layout)
 const BASE_CANVAS_WIDTH = Math.min(SCREEN_WIDTH - 32, 400);
 const BASE_CANVAS_HEIGHT = (BASE_CANVAS_WIDTH * EXPORT_HEIGHT) / EXPORT_WIDTH; // Maintain 2:3 ratio
-const EXPORT_SCALE = 1; // Already high resolution
 
 // Helper function untuk calculate canvas size - TETAP 4R RATIO
 const calculateCanvasSize = (layout: LayoutTemplate | null) => {
@@ -141,9 +141,9 @@ export default function PhotoFrameApp() {
   const [draggingPhotoId, setDraggingPhotoId] = useState<string | null>(null);
   const [draggedOverCellId, setDraggedOverCellId] = useState<string | null>(null);
   const [photoTransforms, setPhotoTransforms] = useState<PhotoTransform[]>([]); // Track photo transforms
-  const [activePhotoId, setActivePhotoId] = useState<string | null>(null); // Active photo untuk drag/scale/rotate
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 }); // Track drag position for overlay
   const [draggingFromGrid, setDraggingFromGrid] = useState<string | null>(null); // Track photo being dragged from grid
+
+  // Remove pagination state - show all photos like Canva
 
   // Calculate canvas size based on selected layout
   const canvasSize = calculateCanvasSize(selectedLayout);
@@ -169,11 +169,7 @@ export default function PhotoFrameApp() {
     initializeGridCells(selectedLayout);
   }, [selectedLayout]);
 
-  // Load photos saat component mount
-  React.useEffect(() => {
-    console.log('Component mounted, loading photos...');
-    loadPhotos();
-  }, []);
+  // Load photos saat component mount - DISABLED: Users should start with empty list
 
   // Debug: log photoList changes
   React.useEffect(() => {
@@ -220,7 +216,7 @@ export default function PhotoFrameApp() {
   };
 
   // Function untuk handle drop dengan position detection
-  const handleDropWithPosition = (photoId: string, x: number, y: number) => {
+  const handleDropWithPosition = React.useCallback((photoId: string, x: number, y: number) => {
     console.log('Drop photo', photoId, 'at position', x, y);
 
     // Get canvas bounds to convert absolute position to relative
@@ -270,14 +266,23 @@ export default function PhotoFrameApp() {
         handleDropPhotoToCell(emptyCell.id, photoId);
       }
     });
-  };
+  }, [selectedLayout, gridCells]);
+
+  // Callback functions untuk drag handlers - memoized to prevent re-renders
+  const handleDragStart = React.useCallback((photoId: string) => {
+    setDraggingPhotoId(photoId);
+  }, []);
+
+  const handleDragEnd = React.useCallback(() => {
+    setDraggingPhotoId(null);
+  }, []);
 
   // Helper functions untuk photo transform
-  const getPhotoTransform = (photoId: string): PhotoTransform | undefined => {
+  const getPhotoTransform = React.useCallback((photoId: string): PhotoTransform | undefined => {
     return photoTransforms.find(t => t.photoId === photoId);
-  };
+  }, [photoTransforms]);
 
-  const updatePhotoTransform = (photoId: string, updates: Partial<PhotoTransform>) => {
+  const updatePhotoTransform = React.useCallback((photoId: string, updates: Partial<PhotoTransform>) => {
     setPhotoTransforms(prev => {
       const existing = prev.find(t => t.photoId === photoId);
       if (existing) {
@@ -286,11 +291,7 @@ export default function PhotoFrameApp() {
         return [...prev, { photoId, x: 0, y: 0, scale: 1, rotation: 0, ...updates }];
       }
     });
-  };
-
-  const deletePhotoTransform = (photoId: string) => {
-    setPhotoTransforms(prev => prev.filter(t => t.photoId !== photoId));
-  };
+  }, []);
 
   // Load photos from database - menggunakan dummy data untuk sementara
   const loadPhotos = React.useCallback(async () => {
@@ -357,6 +358,81 @@ export default function PhotoFrameApp() {
       setLoading(false);
     }
   }, []);
+
+  // Function to pick images from device gallery
+  const pickImagesFromGallery = async () => {
+    try {
+      // Request permissions
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'Izin akses galeri diperlukan untuk memilih foto');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        aspect: undefined,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        // Convert selected images to PhotoTransaction format
+        const selectedPhotos: PhotoTransaction[] = result.assets.map((asset, index) => ({
+          id: `local_${Date.now()}_${index}`,
+          name: asset.fileName || `Local Photo ${index + 1}`,
+          phone: 'local', // Indicate this is a local photo
+          package: 'Local File',
+          link: asset.uri,
+          created_at: new Date().toISOString(),
+        }));
+
+        // Add to existing photoList
+        setPhotoList(prev => [...prev, ...selectedPhotos]);
+        setShowPhotoList(true);
+
+        Alert.alert('Berhasil', `${selectedPhotos.length} foto berhasil ditambahkan`);
+      }
+    } catch (error: any) {
+      console.error('Error picking images:', error);
+      Alert.alert('Error', error.message || 'Gagal memilih foto dari galeri');
+    }
+  };
+
+  // Function to pick single image from file system (for web/mobile file picker)
+  const pickImageFromFile = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+        quality: 0.8,
+        aspect: undefined,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const selectedPhoto: PhotoTransaction = {
+          id: `local_file_${Date.now()}`,
+          name: asset.fileName || 'Local File Photo',
+          phone: 'local_file',
+          package: 'File Picker',
+          link: asset.uri,
+          created_at: new Date().toISOString(),
+        };
+
+        setPhotoList(prev => [...prev, selectedPhoto]);
+        setShowPhotoList(true);
+
+        Alert.alert('Berhasil', 'Foto berhasil ditambahkan dari file');
+      }
+    } catch (error: any) {
+      console.error('Error picking image file:', error);
+      Alert.alert('Error', error.message || 'Gagal memilih foto dari file');
+    }
+  };
 
   const selectPhoto = (photo: PhotoTransaction) => {
     setSelectedPhoto(photo);
@@ -580,6 +656,12 @@ export default function PhotoFrameApp() {
 
     setSaving(true);
     try {
+      // Show loading message for large photo counts
+      const totalPhotos = isGrid ? gridCells.filter(cell => cell.photoId).length : (selectedPhoto ? 1 : 0);
+      if (totalPhotos > 10) {
+        Alert.alert('Memproses', `Sedang memproses ${totalPhotos} foto. Mohon tunggu...`);
+      }
+
       // Wait untuk memastikan semua animasi selesai dan UI sudah render
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -811,15 +893,20 @@ export default function PhotoFrameApp() {
   };
 
   // Draggable Photo Component dengan pan gesture
-  const DraggablePhoto = ({ photo, cellWidth, cellHeight }: { photo: PhotoTransaction; cellWidth: number; cellHeight: number }) => {
-    const transform = getPhotoTransform(photo.id);
-    const translateX = useSharedValue(transform?.x ?? 0);
-    const translateY = useSharedValue(transform?.y ?? 0);
+  const DraggablePhoto = React.memo(({ photo, cellWidth, cellHeight }: { photo: PhotoTransaction; cellWidth: number; cellHeight: number }) => {
+    const currentTransform = getPhotoTransform(photo.id);
+    // Store initial transform values to avoid recalculation during drag
+    const initialX = currentTransform?.x ?? 0;
+    const initialY = currentTransform?.y ?? 0;
+
+    const translateX = useSharedValue(initialX);
+    const translateY = useSharedValue(initialY);
 
     const panGesture = Gesture.Pan()
       .onUpdate((e) => {
-        translateX.value = (transform?.x ?? 0) + e.translationX;
-        translateY.value = (transform?.y ?? 0) + e.translationY;
+        // Use stored initial values + translation
+        translateX.value = initialX + e.translationX;
+        translateY.value = initialY + e.translationY;
       })
       .onEnd(() => {
         runOnJS(updatePhotoTransform)(photo.id, {
@@ -859,7 +946,7 @@ export default function PhotoFrameApp() {
         </Animated.View>
       </GestureDetector>
     );
-  };
+  });
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -870,6 +957,23 @@ export default function PhotoFrameApp() {
         {selectedLayout && (
           <View style={[styles.photoColumn, draggingPhotoId && { overflow: 'visible', zIndex: 1000 }]}>
             <Text style={styles.photoColumnTitle}>Pilih Foto</Text>
+
+            {/* Image Picker Buttons */}
+            <View style={styles.imagePickerButtons}>
+              <TouchableOpacity
+                onPress={pickImagesFromGallery}
+                style={styles.imagePickerButton}
+              >
+                <Text style={styles.imagePickerButtonText}>📁 Buka Galeri</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={pickImageFromFile}
+                style={styles.imagePickerButton}
+              >
+                <Text style={styles.imagePickerButtonText}>📄 Pilih File</Text>
+              </TouchableOpacity>
+            </View>
+
             <ScrollView showsVerticalScrollIndicator={false} style={[styles.photoColumnScroll, draggingPhotoId && { overflow: 'visible' }]}>
               {loading ? (
                 <View style={styles.photoListLoading}>
@@ -877,31 +981,30 @@ export default function PhotoFrameApp() {
                 </View>
               ) : photoList.length === 0 ? (
                 <View style={styles.emptyPhotoList}>
-                  <Text style={styles.emptyPhotoListText}>Tidak ada foto</Text>
-                  <TouchableOpacity onPress={loadPhotos} style={styles.loadPhotoButton}>
-                    <Text style={styles.loadPhotoButtonText}>Muat Foto</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.emptyPhotoListText}>Belum ada foto dipilih</Text>
+                  <Text style={[styles.emptyPhotoListText, { fontSize: 12, marginBottom: 16, color: '#666' }]}>
+                    Gunakan tombol di atas untuk memilih foto dari galeri atau file
+                  </Text>
                 </View>
               ) : (
                 <View style={[styles.photoGridContainer, draggingPhotoId && { overflow: 'visible' }]}>
-                  {photoList.map((photo) => (
-                    <DraggablePhotoListItem
-                      key={photo.id}
-                      photo={photo}
-                      isDragging={draggingPhotoId === photo.id}
-                      onDragStart={setDraggingPhotoId}
-                      onDragEnd={() => setDraggingPhotoId(null)}
-                      onDrop={handleDropWithPosition}
-                    />
-                  ))}
+                  {photoList.map((photo) => {
+                    // Memoize isDragging to prevent unnecessary re-renders of all components
+                    const isDragging = draggingPhotoId === photo.id;
+                    return (
+                      <DraggablePhotoListItem
+                        key={photo.id}
+                        photo={photo}
+                        isDragging={isDragging}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        onDrop={handleDropWithPosition}
+                      />
+                    );
+                  })}
                 </View>
               )}
             </ScrollView>
-            {photoList.length > 0 && (
-              <TouchableOpacity onPress={loadPhotos} style={styles.refreshPhotoListButton}>
-                <Text style={styles.refreshPhotoListButtonText}>🔄 Muat Ulang</Text>
-              </TouchableOpacity>
-            )}
           </View>
         )}
 
@@ -1609,43 +1712,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   photoGridContainer: {
-    flexDirection: 'column',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     padding: 8,
     gap: 8,
+    justifyContent: 'space-between',
   },
   photoGridItem: {
-    flexDirection: 'row',
+    width: 80,
     height: 80,
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#F5F5F5',
     borderWidth: 2,
     borderColor: 'transparent',
-    alignItems: 'center',
   },
   photoGridItemActive: {
     borderColor: '#F7931A',
     borderWidth: 3,
   },
   photoGridItemImage: {
-    width: 80,
-    height: 80,
-  },
-  photoGridItemOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    padding: 12,
-    justifyContent: 'center',
-  },
-  photoGridItemName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 2,
-  },
-  photoGridItemPackage: {
-    fontSize: 11,
-    color: '#ddd',
+    width: '100%',
+    height: '100%',
   },
   refreshPhotoListButton: {
     backgroundColor: '#F7931A',
@@ -1739,5 +1827,62 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#F7931A',
     borderStyle: 'dashed',
+  },
+  // Image Picker Button Styles
+  imagePickerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  imagePickerButton: {
+    flex: 1,
+    backgroundColor: '#F7931A',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  imagePickerButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  // Pagination Styles
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    backgroundColor: '#fff',
+  },
+  paginationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F7931A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paginationButtonDisabled: {
+    backgroundColor: '#E0E0E0',
+  },
+  paginationButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  paginationButtonTextDisabled: {
+    color: '#999',
+  },
+  paginationText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
   },
 });

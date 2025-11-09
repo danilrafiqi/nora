@@ -359,6 +359,68 @@ export default function PhotoFrameApp() {
     }
   }, []);
 
+  const compressImage = (imageUri: string, maxSizeKB: number = 50): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (Platform.OS !== 'web') {
+        resolve(imageUri); // Skip compression on native platforms
+        return;
+      }
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Calculate new dimensions (max 1200px on longest side)
+        const maxDimension = 1200;
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > maxDimension) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width = (width * maxDimension) / height;
+            height = maxDimension;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw and compress
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (blob && blob.size <= maxSizeKB * 1024) {
+            // Already under target size
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          } else {
+            // Try with lower quality
+            canvas.toBlob((compressedBlob) => {
+              if (compressedBlob) {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(compressedBlob);
+              } else {
+                resolve(imageUri); // Fallback to original
+              }
+            }, 'image/jpeg', 0.7);
+          }
+        }, 'image/jpeg', 0.9);
+      };
+
+      img.onerror = () => resolve(imageUri); // Fallback to original
+      img.src = imageUri;
+    });
+  };
+
   // Function to pick images from device gallery
   const pickImagesFromGallery = async () => {
     try {
@@ -379,21 +441,45 @@ export default function PhotoFrameApp() {
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        // Convert selected images to PhotoTransaction format
-        const selectedPhotos: PhotoTransaction[] = result.assets.map((asset, index) => ({
-          id: `local_${Date.now()}_${index}`,
-          name: asset.fileName || `Local Photo ${index + 1}`,
-          phone: 'local', // Indicate this is a local photo
-          package: 'Local File',
-          link: asset.uri,
-          created_at: new Date().toISOString(),
-        }));
+        setLoading(true);
+        try {
+          // Compress images to under 50KB for better performance
+          const processedPhotos: PhotoTransaction[] = [];
 
-        // Add to existing photoList
-        setPhotoList(prev => [...prev, ...selectedPhotos]);
-        setShowPhotoList(true);
+          for (const asset of result.assets) {
+            try {
+              const compressedUri = await compressImage(asset.uri, 50);
+              processedPhotos.push({
+                id: `local_${Date.now()}_${processedPhotos.length}`,
+                name: asset.fileName || `Local Photo ${processedPhotos.length + 1}`,
+                phone: 'local',
+                package: 'Local File',
+                link: compressedUri,
+                created_at: new Date().toISOString(),
+              });
+            } catch (error) {
+              // Fallback to original if compression fails
+              processedPhotos.push({
+                id: `local_${Date.now()}_${processedPhotos.length}`,
+                name: asset.fileName || `Local Photo ${processedPhotos.length + 1}`,
+                phone: 'local',
+                package: 'Local File',
+                link: asset.uri,
+                created_at: new Date().toISOString(),
+              });
+            }
+          }
 
-        Alert.alert('Berhasil', `${selectedPhotos.length} foto berhasil ditambahkan`);
+          setPhotoList(prev => [...prev, ...processedPhotos]);
+          setShowPhotoList(true);
+
+          Alert.alert('Berhasil', `${processedPhotos.length} foto berhasil diproses`);
+        } catch (error) {
+          console.error('Processing error:', error);
+          Alert.alert('Error', 'Gagal memproses foto');
+        } finally {
+          setLoading(false);
+        }
       }
     } catch (error: any) {
       console.error('Error picking images:', error);
@@ -413,20 +499,43 @@ export default function PhotoFrameApp() {
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        const asset = result.assets[0];
-        const selectedPhoto: PhotoTransaction = {
-          id: `local_file_${Date.now()}`,
-          name: asset.fileName || 'Local File Photo',
-          phone: 'local_file',
-          package: 'File Picker',
-          link: asset.uri,
-          created_at: new Date().toISOString(),
-        };
+        setLoading(true);
+        try {
+          const asset = result.assets[0];
+          const compressedUri = await compressImage(asset.uri, 50);
 
-        setPhotoList(prev => [...prev, selectedPhoto]);
-        setShowPhotoList(true);
+          const selectedPhoto: PhotoTransaction = {
+            id: `local_file_${Date.now()}`,
+            name: asset.fileName || 'Local File Photo',
+            phone: 'local_file',
+            package: 'File Picker',
+            link: compressedUri,
+            created_at: new Date().toISOString(),
+          };
 
-        Alert.alert('Berhasil', 'Foto berhasil ditambahkan dari file');
+          setPhotoList(prev => [...prev, selectedPhoto]);
+          setShowPhotoList(true);
+
+          Alert.alert('Berhasil', 'Foto berhasil diproses');
+        } catch (error) {
+          // Fallback to original if compression fails
+          const asset = result.assets[0];
+          const selectedPhoto: PhotoTransaction = {
+            id: `local_file_${Date.now()}`,
+            name: asset.fileName || 'Local File Photo',
+            phone: 'local_file',
+            package: 'File Picker',
+            link: asset.uri,
+            created_at: new Date().toISOString(),
+          };
+
+          setPhotoList(prev => [...prev, selectedPhoto]);
+          setShowPhotoList(true);
+
+          Alert.alert('Berhasil', 'Foto berhasil ditambahkan (menggunakan ukuran asli)');
+        } finally {
+          setLoading(false);
+        }
       }
     } catch (error: any) {
       console.error('Error picking image file:', error);

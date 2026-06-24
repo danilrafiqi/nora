@@ -1,11 +1,14 @@
 import { useAuth } from "@/contexts/AuthContext";
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { db } from "@/services/firebase";
 import { normalizePhone } from "@/utils/phoneNormalizer";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { addDoc, collection, deleteDoc, doc, limit as fbLimit, getDocs, orderBy, query, startAfter } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
-import { Linking, Modal, ScrollView, Text, View, Pressable } from "react-native";
+import { Linking, Modal, Platform, ScrollView, Text, View, Pressable } from "react-native";
 
 // Gluestack Select
 import { ChevronDownIcon } from "@/components/ui/icon";
@@ -53,6 +56,64 @@ type PackageItem = {
   name: string;
 };
 
+const formatManualDateInput = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  const hour = `${date.getHours()}`.padStart(2, "0");
+  const minute = `${date.getMinutes()}`.padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hour}:${minute}`;
+};
+
+const parseManualDateInput = (value: string): Date | null => {
+  const normalized = value.trim().replace("T", " ");
+  const match = normalized.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}))?$/
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day, hour = "00", minute = "00"] = match;
+  const parsed = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    0,
+    0
+  );
+
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  if (
+    parsed.getFullYear() !== Number(year) ||
+    parsed.getMonth() !== Number(month) - 1 ||
+    parsed.getDate() !== Number(day) ||
+    parsed.getHours() !== Number(hour) ||
+    parsed.getMinutes() !== Number(minute)
+  ) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const formatDatePreview = (date: Date): string => {
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
+
 export default function TransactionScreen() {
   const router = useRouter();
   const { user, loading, role, signOut } = useAuth();
@@ -70,9 +131,12 @@ export default function TransactionScreen() {
     phone: "",
     total_spending: "",
   });
+  const [dateMode, setDateMode] = useState<"today" | "manual">("today");
+  const [manualCreatedAt, setManualCreatedAt] = useState(formatManualDateInput(new Date()));
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // ambil transaction (paginated)
   const loadTransactions = async () => {
@@ -163,18 +227,42 @@ export default function TransactionScreen() {
       return;
     }
 
+    const createdAt =
+      dateMode === "manual"
+        ? parseManualDateInput(manualCreatedAt)
+        : new Date();
+
+    if (!createdAt) {
+      alert("Format tanggal manual tidak valid. Gunakan YYYY-MM-DD HH:mm");
+      return;
+    }
+
     await addDoc(collection(db, "transaction"), {
       ...form,
       total_spending: Number(form.total_spending),
-      created_at: new Date().toISOString(), // <<<< TAMBAH created_at
+      created_at: createdAt.toISOString(),
     });
 
     setForm({ link: "", name: "", package: "", phone: "", total_spending: "" });
+    setDateMode("today");
+    setManualCreatedAt(formatManualDateInput(new Date()));
     // reset pagination and reload first page
     setLastVisible(null);
     setHasMore(true);
     setTransactions([]);
     await loadTransactions();
+  };
+
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS !== "ios") {
+      setShowDatePicker(false);
+    }
+
+    if (event.type === "dismissed" || !selectedDate) {
+      return;
+    }
+
+    setManualCreatedAt(formatManualDateInput(selectedDate));
   };
 
   const handleDelete = async () => {
@@ -547,9 +635,99 @@ Kami tunggu momen indah Anda berikutnya untuk diabadikan bersama Nora Studio.`,
                   className="font-body"
                 />
               </Input>
+              <View style={{ gap: 8 }}>
+                <Text className="font-body text-sm text-typography-700">Tanggal Transaksi</Text>
+                <View className="flex-row gap-3">
+                  <Pressable
+                    onPress={() => setDateMode("today")}
+                    className={`flex-1 px-4 py-2.5 rounded border ${
+                      dateMode === "today"
+                        ? "bg-accent-orange border-accent-orange"
+                        : "bg-white border-outline-300"
+                    }`}
+                  >
+                    <Text
+                      className={`font-body text-center ${
+                        dateMode === "today" ? "text-white font-semibold" : "text-typography-700"
+                      }`}
+                    >
+                      Hari Ini
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setDateMode("manual")}
+                    className={`flex-1 px-4 py-2.5 rounded border ${
+                      dateMode === "manual"
+                        ? "bg-accent-orange border-accent-orange"
+                        : "bg-white border-outline-300"
+                    }`}
+                  >
+                    <Text
+                      className={`font-body text-center ${
+                        dateMode === "manual" ? "text-white font-semibold" : "text-typography-700"
+                      }`}
+                    >
+                      Set Manual
+                    </Text>
+                  </Pressable>
+                </View>
+                {dateMode === "manual" ? (
+                  <>
+                    {Platform.OS === "web" ? (
+                      <>
+                        <Input variant="outline" size="md" className="bg-white rounded border-outline-300">
+                          <InputField
+                            placeholder="YYYY-MM-DD HH:mm"
+                            value={manualCreatedAt}
+                            onChangeText={setManualCreatedAt}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            className="font-body"
+                          />
+                        </Input>
+                        <Text className="font-body text-xs text-typography-500">
+                          Contoh: 2026-06-15 14:30
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Pressable
+                          onPress={() => setShowDatePicker(true)}
+                          className="border border-outline-300 bg-white px-4 py-3 rounded active:bg-outline-100"
+                        >
+                          <Text className="font-body text-typography-800">
+                            {formatDatePreview(parseManualDateInput(manualCreatedAt) || new Date())}
+                          </Text>
+                        </Pressable>
+                        <Text className="font-body text-xs text-typography-500">
+                          Tap untuk pilih tanggal dan jam transaksi.
+                        </Text>
+                        {showDatePicker && (
+                          <DateTimePicker
+                            value={parseManualDateInput(manualCreatedAt) || new Date()}
+                            mode="datetime"
+                            is24Hour
+                            display={Platform.OS === "ios" ? "spinner" : "default"}
+                            onChange={handleDateChange}
+                          />
+                        )}
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <Text className="font-body text-xs text-typography-500">
+                    Transaksi akan disimpan dengan waktu saat ini.
+                  </Text>
+                )}
+              </View>
               <View className="flex-row gap-3 mt-1">
                 <Pressable
-                  onPress={() => setIsFormOpen(false)}
+                  onPress={() => {
+                    setIsFormOpen(false);
+                    setDateMode("today");
+                    setManualCreatedAt(formatManualDateInput(new Date()));
+                    setShowDatePicker(false);
+                  }}
                   className="flex-1 border border-outline-300 bg-white px-4 py-2.5 rounded active:bg-outline-100"
                 >
                   <Text className="font-body text-center text-typography-700">Batal</Text>

@@ -17,6 +17,7 @@
     "@gluestack-ui/utils": "3.0.0",
     "@gluestack/ui-next-adapter": "3.0.0",
     "@legendapp/motion": "^2.4.0",
+    "@react-native-community/datetimepicker": "8.4.1",
     "@react-native-firebase/app": "^23.0.1",
     "@react-native-firebase/firestore": "^23.0.1",
     "@react-navigation/bottom-tabs": "^7.3.10",

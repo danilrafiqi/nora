@@ -226,40 +226,7 @@ async function createMonthlyReportPdf(report: MonthlyReportData): Promise<Uint8A
     bold
   );
 
-  const compareY = PAGE_HEIGHT - 190;
-  page.drawRectangle({
-    x: MARGIN_X,
-    y: compareY - 42,
-    width: PAGE_WIDTH - MARGIN_X * 2,
-    height: 42,
-    color: LIGHT_BG,
-    borderColor: BORDER,
-    borderWidth: 1,
-  });
-  page.drawText(
-    `Perbandingan bulan lalu: ${formatCurrency(report.previousMonth.revenue)} dari ${formatNumber(
-      report.previousMonth.count
-    )} transaksi`,
-    {
-      x: MARGIN_X + 12,
-      y: compareY - 18,
-      size: 10,
-      font: regular,
-      color: TEXT,
-    }
-  );
-  page.drawText(
-    `Growth omzet: ${report.monthlyGrowth > 0 ? "+" : ""}${report.monthlyGrowth.toFixed(1)}%`,
-    {
-      x: MARGIN_X + 12,
-      y: compareY - 31,
-      size: 10,
-      font: bold,
-      color: TEXT,
-    }
-  );
-
-  let currentY = PAGE_HEIGHT - 260;
+  let currentY = PAGE_HEIGHT - 220;
   page.drawText("Daftar Transaksi", {
     x: MARGIN_X,
     y: currentY,

@@ -3,6 +3,7 @@ import { db } from "@/services/firebase";
 import { exportMonthlyReportPdf } from "@/utils/reportPdf";
 import {
   MONTH_OPTIONS,
+  buildSimulationTransactions,
   getAvailableYearsForMonth,
   buildMonthlyReport,
   formatCurrency,
@@ -14,13 +15,14 @@ import {
 import { useRouter } from "expo-router";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { Alert, ScrollView, Switch, View } from "react-native";
 
 // Gluestack
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
 import { HStack } from "@/components/ui/hstack";
 import { ChevronDownIcon } from "@/components/ui/icon";
+import { Input, InputField } from "@/components/ui/input";
 import {
   Select,
   SelectBackdrop,
@@ -45,6 +47,8 @@ export default function ReportPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth().toString());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear().toString());
+  const [simulationEnabled, setSimulationEnabled] = useState(false);
+  const [simulationTarget, setSimulationTarget] = useState("");
 
   const loadTransactions = async () => {
     setIsLoading(true);
@@ -75,9 +79,26 @@ export default function ReportPage() {
   const availableYearsForSelectedMonth = useMemo(() => {
     return getAvailableYearsForMonth(transactions, Number(selectedMonth));
   }, [transactions, selectedMonth]);
+  const simulation = useMemo(() => {
+    if (!simulationEnabled) {
+      return buildSimulationTransactions(0, Number(selectedYear), Number(selectedMonth));
+    }
+
+    return buildSimulationTransactions(
+      simulationTarget,
+      Number(selectedYear),
+      Number(selectedMonth)
+    );
+  }, [selectedMonth, selectedYear, simulationEnabled, simulationTarget]);
   const report = useMemo(() => {
-    return buildMonthlyReport(transactions, Number(selectedYear), Number(selectedMonth));
-  }, [transactions, selectedMonth, selectedYear]);
+    return buildMonthlyReport(
+      transactions,
+      Number(selectedYear),
+      Number(selectedMonth),
+      simulation.rows,
+      simulation.target
+    );
+  }, [transactions, selectedMonth, selectedYear, simulation]);
 
   useEffect(() => {
     if (!availableYears.length) return;
@@ -214,6 +235,67 @@ export default function ReportPage() {
           </VStack>
         </Box>
 
+        <Box className="bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium">
+          <VStack space="md">
+            <HStack className="justify-between items-center">
+              <VStack space="xs" className="flex-1">
+                <Text className="text-base font-heading font-bold text-typography-900">
+                  Simulasi Paket Baru
+                </Text>
+                <Text className="text-xs font-body text-typography-500">
+                  Tambahkan proyeksi omzet tanpa mengubah data transaksi asli.
+                </Text>
+              </VStack>
+              <Switch
+                value={simulationEnabled}
+                onValueChange={setSimulationEnabled}
+                trackColor={{ false: "#d1d5db", true: "#fdba74" }}
+                thumbColor={simulationEnabled ? "#ea580c" : "#f9fafb"}
+              />
+            </HStack>
+
+            <Input variant="outline" size="md" className="bg-white rounded border-outline-300">
+              <InputField
+                placeholder="Target tambahan omzet, contoh 4000000"
+                value={simulationTarget}
+                onChangeText={setSimulationTarget}
+                keyboardType="numeric"
+                editable={simulationEnabled}
+                className="font-body"
+              />
+            </Input>
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <Box className="flex-1 bg-background-50 p-4 rounded-lg border border-outline-200">
+                <VStack space="xs">
+                  <Text className="text-xs font-body text-typography-500">Target Simulasi</Text>
+                  <Text className="text-lg font-heading font-bold text-typography-900">
+                    {formatCurrency(simulation.target)}
+                  </Text>
+                </VStack>
+              </Box>
+
+              <Box className="flex-1 bg-background-50 p-4 rounded-lg border border-outline-200">
+                <VStack space="xs">
+                  <Text className="text-xs font-body text-typography-500">Total Hasil</Text>
+                  <Text className="text-lg font-heading font-bold text-typography-900">
+                    {formatCurrency(simulation.total)}
+                  </Text>
+                </VStack>
+              </Box>
+            </View>
+
+            <HStack className="justify-between items-center">
+              <Text className="text-xs font-body text-typography-500">
+                {formatNumber(simulation.rows.length)} row simulasi
+              </Text>
+              <Text className="text-xs font-body text-typography-500">
+                Selisih {formatCurrency(simulation.difference)}
+              </Text>
+            </HStack>
+          </VStack>
+        </Box>
+
         <VStack space="sm">
           <Text className="text-lg font-heading font-bold text-typography-900">
             Ringkasan {report.monthLabel}
@@ -277,6 +359,27 @@ export default function ReportPage() {
                 </Text>
               </HStack>
             </Box>
+
+            {report.simulation?.enabled && (
+              <Box className="bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium">
+                <HStack className="justify-between items-center">
+                  <VStack space="xs">
+                    <Text className="text-sm font-body text-typography-600">Kontribusi Simulasi</Text>
+                    <Text className="text-lg font-heading font-bold text-typography-900">
+                      {formatCurrency(report.simulation.total)}
+                    </Text>
+                  </VStack>
+                  <VStack space="xs" className="items-end">
+                    <Text className="text-xs font-body text-typography-500">
+                      {formatNumber(report.simulation.count)} transaksi
+                    </Text>
+                    <Text className="text-xs font-body text-typography-500">
+                      Target: {formatCurrency(report.simulation.target)}
+                    </Text>
+                  </VStack>
+                </HStack>
+              </Box>
+            )}
           </View>
         </VStack>
 

@@ -1,171 +1,64 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/services/firebase";
+import { exportMonthlyReportPdf } from "@/utils/reportPdf";
+import {
+  MONTH_OPTIONS,
+  buildMonthlyReport,
+  formatCurrency,
+  formatNumber,
+  formatTransactionDate,
+  getAvailableReportYears,
+  type TransactionRecord,
+} from "@/utils/reporting";
 import { useRouter } from "expo-router";
-import { collection, getDocs } from "firebase/firestore";
-import { useEffect, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, ScrollView, View } from "react-native";
 
 // Gluestack
 import { Box } from "@/components/ui/box";
+import { Button, ButtonText } from "@/components/ui/button";
 import { HStack } from "@/components/ui/hstack";
+import { ChevronDownIcon } from "@/components/ui/icon";
+import {
+  Select,
+  SelectBackdrop,
+  SelectContent,
+  SelectDragIndicator,
+  SelectDragIndicatorWrapper,
+  SelectIcon,
+  SelectInput,
+  SelectItem,
+  SelectPortal,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import {
-  differenceInDays,
-  isSameDay,
-  isSameMonth,
-  isSameWeek,
-  isSameYear,
-  subDays,
-  subMonths,
-} from "date-fns";
-
-type Transaction = {
-  id: string;
-  name: string;
-  package: string;
-  phone: string;
-  link: string;
-  total_spending: number;
-  created_at: string; // ISO string
-};
 
 export default function ReportPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const now = new Date();
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [report, setReport] = useState<any>({
-    daily: { revenue: 0, count: 0 },
-    weekly: { revenue: 0, count: 0 },
-    monthly: { revenue: 0, count: 0 },
-    yearly: { revenue: 0, count: 0 },
-    last7: { revenue: 0, count: 0 },
-    last30: { revenue: 0, count: 0 },
-    last365: { revenue: 0, count: 0 },
-    all: { revenue: 0, count: 0 },
-    previousMonth: { revenue: 0, count: 0 },
-    previousWeek: { revenue: 0, count: 0 },
-    topPackages: [] as { name: string; count: number; revenue: number }[],
-    avgTransaction: 0,
-  });
+  const [isExporting, setIsExporting] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth().toString());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear().toString());
 
-  // ambil data transaksi dari firestore
   const loadTransactions = async () => {
     setIsLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, "transaction"));
-      const items: Transaction[] = querySnapshot.docs.map((doc) => ({
+      const reportQuery = query(collection(db, "transaction"), orderBy("created_at", "desc"));
+      const querySnapshot = await getDocs(reportQuery);
+      const items: TransactionRecord[] = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      })) as Transaction[];
+      })) as TransactionRecord[];
       setTransactions(items);
     } finally {
       setIsLoading(false);
     }
   };
-
-  const calculateReports = (items: Transaction[]) => {
-    const now = new Date();
-    const nowUTC = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
-    
-    // Previous periods for comparison
-    const lastMonthStart = subMonths(nowUTC, 1);
-    const lastWeekStart = subDays(nowUTC, 7);
-
-    const stats = {
-      daily: { revenue: 0, count: 0 },
-      weekly: { revenue: 0, count: 0 },
-      monthly: { revenue: 0, count: 0 },
-      yearly: { revenue: 0, count: 0 },
-      last7: { revenue: 0, count: 0 },
-      last30: { revenue: 0, count: 0 },
-      last365: { revenue: 0, count: 0 },
-      all: { revenue: 0, count: 0 },
-      previousMonth: { revenue: 0, count: 0 },
-      previousWeek: { revenue: 0, count: 0 },
-      topPackages: {} as Record<string, { count: number; revenue: number }>,
-    };
-
-    items.forEach((t) => {
-      const d = new Date(t.created_at);
-      const spend = Number(t.total_spending) || 0;
-      const pkgName = t.package || "Unknown";
-
-      // Initialize package stats
-      if (!stats.topPackages[pkgName]) {
-        stats.topPackages[pkgName] = { count: 0, revenue: 0 };
-      }
-      stats.topPackages[pkgName].count += 1;
-      stats.topPackages[pkgName].revenue += spend;
-
-      // All time stats
-      stats.all.revenue += spend;
-      stats.all.count += 1;
-
-      // Period-based stats
-      if (isSameDay(d, nowUTC)) {
-        stats.daily.revenue += spend;
-        stats.daily.count += 1;
-      }
-      if (isSameWeek(d, nowUTC, { weekStartsOn: 1 })) {
-        stats.weekly.revenue += spend;
-        stats.weekly.count += 1;
-      }
-      if (isSameMonth(d, nowUTC)) {
-        stats.monthly.revenue += spend;
-        stats.monthly.count += 1;
-      }
-      if (isSameYear(d, nowUTC)) {
-        stats.yearly.revenue += spend;
-        stats.yearly.count += 1;
-      }
-
-      const diffDays = differenceInDays(nowUTC, d);
-      if (diffDays <= 7) {
-        stats.last7.revenue += spend;
-        stats.last7.count += 1;
-      }
-      if (diffDays <= 30) {
-        stats.last30.revenue += spend;
-        stats.last30.count += 1;
-      }
-      if (diffDays <= 365) {
-        stats.last365.revenue += spend;
-        stats.last365.count += 1;
-      }
-
-      // Previous periods
-      if (d >= lastMonthStart && d < subMonths(nowUTC, 0)) {
-        if (!isSameMonth(d, nowUTC)) {
-          stats.previousMonth.revenue += spend;
-          stats.previousMonth.count += 1;
-        }
-      }
-      if (d >= lastWeekStart && d < subDays(nowUTC, 0)) {
-        if (!isSameWeek(d, nowUTC, { weekStartsOn: 1 })) {
-          stats.previousWeek.revenue += spend;
-          stats.previousWeek.count += 1;
-        }
-      }
-    });
-
-    // Calculate average transaction
-    const avgTransaction = stats.all.count > 0 ? stats.all.revenue / stats.all.count : 0;
-
-    // Convert topPackages to array and sort
-    const topPackages = Object.entries(stats.topPackages)
-      .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
-
-    setReport({
-      ...stats,
-      topPackages,
-      avgTransaction,
-    });
-  };
-
 
   useEffect(() => {
     if (!loading && !user) {
@@ -175,34 +68,32 @@ export default function ReportPage() {
     if (!loading && user) {
       loadTransactions();
     }
-  }, [loading, user]);
+  }, [loading, router, user]);
 
-  useEffect(() => {
-    if (transactions.length > 0) {
-      calculateReports(transactions);
+  const availableYears = useMemo(() => getAvailableReportYears(transactions), [transactions]);
+  const report = useMemo(() => {
+    return buildMonthlyReport(transactions, Number(selectedYear), Number(selectedMonth));
+  }, [transactions, selectedMonth, selectedYear]);
+
+  const handleExportPdf = async () => {
+    if (report.transactions.length === 0) {
+      Alert.alert("Tidak ada data", "Belum ada transaksi pada bulan yang dipilih.");
+      return;
     }
-  }, [transactions]);
 
-  const formatCurrency = (num: number) =>
-    "Rp " + num?.toLocaleString("id-ID");
-
-  const formatNumber = (num: number) => num?.toLocaleString("id-ID");
-
-  const calculateGrowth = (current: number, previous: number): number => {
-    if (previous === 0) return current > 0 ? 100 : 0;
-    return ((current - previous) / previous) * 100;
-  };
-
-  const getGrowthColor = (growth: number) => {
-    if (growth > 0) return "text-success-600";
-    if (growth < 0) return "text-error-600";
-    return "text-typography-500";
-  };
-
-  const getGrowthIcon = (growth: number) => {
-    if (growth > 0) return "📈";
-    if (growth < 0) return "📉";
-    return "➡️";
+    try {
+      setIsExporting(true);
+      await exportMonthlyReportPdf(report);
+      if (typeof document === "undefined") {
+        Alert.alert("Berhasil", "Report PDF berhasil disiapkan.");
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Gagal membuat report PDF";
+      Alert.alert("Error", message);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (isLoading) {
@@ -217,136 +108,167 @@ export default function ReportPage() {
     );
   }
 
-  const monthlyGrowth = calculateGrowth(report.monthly.revenue, report.previousMonth.revenue);
-  const weeklyGrowth = calculateGrowth(report.weekly.revenue, report.previousWeek.revenue);
-
   return (
     <ScrollView className="flex-1 bg-background-0">
       <VStack space="lg" className="p-4">
-        {/* Summary Cards - Highlighted */}
         <VStack space="md">
-          <Text className="text-2xl font-heading font-bold text-typography-900">Dashboard Report</Text>
-          
-          {/* Main Stats Grid */}
-          <View style={{ gap: 12 }}>
-            {/* Total Revenue - Large Card */}
+          <Text className="text-2xl font-heading font-bold text-typography-900">Report Bulanan</Text>
+          <Text className="text-sm font-body text-typography-600">
+            Pilih bulan dan tahun untuk melihat ringkasan transaksi lalu export PDF.
+          </Text>
+        </VStack>
+
+        <Box className="bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium">
+          <VStack space="md">
+            <Text className="text-base font-heading font-bold text-typography-900">Filter Periode</Text>
+            <View style={{ gap: 12 }}>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Select selectedValue={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger variant="outline" size="md" className="rounded border-outline-300 bg-white">
+                      <SelectInput placeholder="Pilih Bulan" />
+                      <SelectIcon as={ChevronDownIcon} className="mr-3" />
+                    </SelectTrigger>
+                    <SelectPortal>
+                      <SelectBackdrop />
+                      <SelectContent>
+                        <SelectDragIndicatorWrapper>
+                          <SelectDragIndicator />
+                        </SelectDragIndicatorWrapper>
+                        {MONTH_OPTIONS.map((month) => (
+                          <SelectItem
+                            key={month.value}
+                            label={month.label}
+                            value={month.value.toString()}
+                          />
+                        ))}
+                      </SelectContent>
+                    </SelectPortal>
+                  </Select>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Select selectedValue={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger variant="outline" size="md" className="rounded border-outline-300 bg-white">
+                      <SelectInput placeholder="Pilih Tahun" />
+                      <SelectIcon as={ChevronDownIcon} className="mr-3" />
+                    </SelectTrigger>
+                    <SelectPortal>
+                      <SelectBackdrop />
+                      <SelectContent>
+                        <SelectDragIndicatorWrapper>
+                          <SelectDragIndicator />
+                        </SelectDragIndicatorWrapper>
+                        {availableYears.map((year) => (
+                          <SelectItem key={year} label={year.toString()} value={year.toString()} />
+                        ))}
+                      </SelectContent>
+                    </SelectPortal>
+                  </Select>
+                </View>
+              </View>
+
+              <Button
+                onPress={handleExportPdf}
+                disabled={isExporting || report.transactions.length === 0}
+                action="primary"
+                variant="solid"
+                size="md"
+                className="bg-accent-orange data-[hover=true]:bg-accent-orangeDark data-[active=true]:bg-accent-orangeDark shadow-medium"
+              >
+                <ButtonText className="text-white">
+                  {isExporting ? "Menyiapkan PDF..." : `Export PDF ${report.monthLabel}`}
+                </ButtonText>
+              </Button>
+            </View>
+          </VStack>
+        </Box>
+
+        <VStack space="sm">
+          <Text className="text-lg font-heading font-bold text-typography-900">
+            Ringkasan {report.monthLabel}
+          </Text>
+          <View style={{ gap: 10 }}>
             <Box className="bg-accent-orange/10 p-6 rounded-lg border-2 border-accent-orange shadow-medium">
               <VStack space="sm">
                 <Text className="text-sm font-body text-typography-600">Total Revenue</Text>
                 <Text className="text-3xl font-heading font-bold text-accent-orange">
-                  {formatCurrency(report.all.revenue)}
+                  {formatCurrency(report.summary.revenue)}
                 </Text>
                 <HStack className="items-center gap-2 mt-1">
                   <Text className="text-xs font-body text-typography-500">
-                    {formatNumber(report.all.count)} transaksi
+                    {formatNumber(report.summary.count)} transaksi
                   </Text>
                   <Text className="text-xs font-body text-typography-500">•</Text>
                   <Text className="text-xs font-body text-typography-500">
-                    Avg: {formatCurrency(report.avgTransaction)}
+                    Avg: {formatCurrency(report.summary.avgTransaction)}
                   </Text>
                 </HStack>
               </VStack>
             </Box>
 
-            {/* Monthly & Weekly - Side by Side */}
-            <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flexDirection: "row", gap: 12 }}>
               <Box className="flex-1 bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium">
                 <VStack space="xs">
-                  <Text className="text-sm font-body text-typography-600">Bulan Ini</Text>
+                  <Text className="text-sm font-body text-typography-600">Bulan Dipilih</Text>
                   <Text className="text-xl font-heading font-bold text-typography-900">
-                    {formatCurrency(report.monthly.revenue)}
+                    {formatCurrency(report.summary.revenue)}
                   </Text>
-                  <HStack className="items-center gap-1">
-                    <Text className="text-xs">{getGrowthIcon(monthlyGrowth)}</Text>
-                    <Text className={`text-xs font-body ${getGrowthColor(monthlyGrowth)}`}>
-                      {monthlyGrowth > 0 ? '+' : ''}{monthlyGrowth.toFixed(1)}% vs bulan lalu
-                    </Text>
-                  </HStack>
                   <Text className="text-xs font-body text-typography-500 mt-1">
-                    {formatNumber(report.monthly.count)} transaksi
+                    {formatNumber(report.summary.count)} transaksi
                   </Text>
                 </VStack>
               </Box>
 
               <Box className="flex-1 bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium">
                 <VStack space="xs">
-                  <Text className="text-sm font-body text-typography-600">Minggu Ini</Text>
+                  <Text className="text-sm font-body text-typography-600">Bulan Sebelumnya</Text>
                   <Text className="text-xl font-heading font-bold text-typography-900">
-                    {formatCurrency(report.weekly.revenue)}
+                    {formatCurrency(report.previousMonth.revenue)}
                   </Text>
-                  <HStack className="items-center gap-1">
-                    <Text className="text-xs">{getGrowthIcon(weeklyGrowth)}</Text>
-                    <Text className={`text-xs font-body ${getGrowthColor(weeklyGrowth)}`}>
-                      {weeklyGrowth > 0 ? '+' : ''}{weeklyGrowth.toFixed(1)}% vs minggu lalu
-                    </Text>
-                  </HStack>
                   <Text className="text-xs font-body text-typography-500 mt-1">
-                    {formatNumber(report.weekly.count)} transaksi
+                    {formatNumber(report.previousMonth.count)} transaksi
                   </Text>
                 </VStack>
               </Box>
             </View>
-          </View>
-        </VStack>
-
-        {/* Today & Year Stats */}
-        <VStack space="sm">
-          <Text className="text-lg font-heading font-bold text-typography-900">Ringkasan</Text>
-          <View style={{ gap: 10 }}>
-            <Box className="bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium">
-              <HStack className="justify-between items-center">
-                <VStack space="xs">
-                  <Text className="text-sm font-body text-typography-600">Hari Ini</Text>
-                  <Text className="text-lg font-heading font-bold text-typography-900">
-                    {formatCurrency(report.daily.revenue)}
-                  </Text>
-                </VStack>
-                <VStack space="xs" className="items-end">
-                  <Text className="text-xs font-body text-typography-500">
-                    {formatNumber(report.daily.count)} transaksi
-                  </Text>
-                  {report.daily.count > 0 && (
-                    <Text className="text-xs font-body text-typography-500">
-                      Avg: {formatCurrency(report.daily.revenue / report.daily.count)}
-                    </Text>
-                  )}
-                </VStack>
-              </HStack>
-            </Box>
 
             <Box className="bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium">
               <HStack className="justify-between items-center">
                 <VStack space="xs">
-                  <Text className="text-sm font-body text-typography-600">Tahun Ini</Text>
+                  <Text className="text-sm font-body text-typography-600">Growth Omzet</Text>
                   <Text className="text-lg font-heading font-bold text-typography-900">
-                    {formatCurrency(report.yearly.revenue)}
+                    {report.monthlyGrowth > 0 ? "+" : ""}
+                    {report.monthlyGrowth.toFixed(1)}%
                   </Text>
                 </VStack>
-                <VStack space="xs" className="items-end">
-                  <Text className="text-xs font-body text-typography-500">
-                    {formatNumber(report.yearly.count)} transaksi
-                  </Text>
-                </VStack>
+                <Text className="text-xs font-body text-typography-500">
+                  Dibanding bulan sebelumnya
+                </Text>
               </HStack>
             </Box>
           </View>
         </VStack>
 
-        {/* Top Packages */}
-        {report.topPackages.length > 0 && (
+        {report.summary.topPackages.length > 0 && (
           <VStack space="sm">
             <Text className="text-lg font-heading font-bold text-typography-900">Paket Populer</Text>
             <Box className="bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium">
               <VStack space="sm">
-                {report.topPackages.map((pkg, idx) => (
-                  <View key={idx} className="pb-3" style={{ borderBottomWidth: idx < report.topPackages.length - 1 ? 1 : 0, borderBottomColor: '#e5e7eb' }}>
+                {report.summary.topPackages.map((pkg, idx) => (
+                  <View
+                    key={`${pkg.name}-${idx}`}
+                    className="pb-3"
+                    style={{
+                      borderBottomWidth: idx < report.summary.topPackages.length - 1 ? 1 : 0,
+                      borderBottomColor: "#e5e7eb",
+                    }}
+                  >
                     <HStack className="justify-between items-start">
                       <VStack space="xs" className="flex-1">
-                        <HStack className="items-center gap-2">
-                          <Text className="text-base font-heading font-bold text-typography-900">
-                            #{idx + 1} {pkg.name}
-                          </Text>
-                        </HStack>
+                        <Text className="text-base font-heading font-bold text-typography-900">
+                          #{idx + 1} {pkg.name}
+                        </Text>
                         <Text className="text-sm font-body text-typography-600">
                           {formatNumber(pkg.count)} transaksi
                         </Text>
@@ -355,11 +277,9 @@ export default function ReportPage() {
                         <Text className="text-base font-heading font-bold text-success-600">
                           {formatCurrency(pkg.revenue)}
                         </Text>
-                        {pkg.count > 0 && (
-                          <Text className="text-xs font-body text-typography-500">
-                            Avg: {formatCurrency(pkg.revenue / pkg.count)}
-                          </Text>
-                        )}
+                        <Text className="text-xs font-body text-typography-500">
+                          Avg: {formatCurrency(pkg.revenue / pkg.count)}
+                        </Text>
                       </VStack>
                     </HStack>
                   </View>
@@ -369,52 +289,55 @@ export default function ReportPage() {
           </VStack>
         )}
 
-        {/* Period Stats - Collapsed */}
         <VStack space="sm">
-          <Text className="text-lg font-heading font-bold text-typography-900">Periode Lainnya</Text>
-          <View style={{ gap: 10 }}>
-            <Box className="bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium">
-              <HStack className="justify-between items-center">
-                <Text className="text-sm font-body text-typography-700">7 Hari Terakhir</Text>
-                <VStack space="xs" className="items-end">
-                  <Text className="text-base font-heading font-semibold text-typography-900">
-                    {formatCurrency(report.last7.revenue)}
-                  </Text>
-                  <Text className="text-xs font-body text-typography-500">
-                    {formatNumber(report.last7.count)} transaksi
-                  </Text>
-                </VStack>
-              </HStack>
-            </Box>
+          <HStack className="justify-between items-center">
+            <Text className="text-lg font-heading font-bold text-typography-900">
+              Daftar Transaksi
+            </Text>
+            <Text className="text-sm font-body text-typography-500">
+              {formatNumber(report.transactions.length)} item
+            </Text>
+          </HStack>
 
-            <Box className="bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium">
-              <HStack className="justify-between items-center">
-                <Text className="text-sm font-body text-typography-700">30 Hari Terakhir</Text>
-                <VStack space="xs" className="items-end">
-                  <Text className="text-base font-heading font-semibold text-typography-900">
-                    {formatCurrency(report.last30.revenue)}
-                  </Text>
-                  <Text className="text-xs font-body text-typography-500">
-                    {formatNumber(report.last30.count)} transaksi
-                  </Text>
-                </VStack>
-              </HStack>
+          {report.transactions.length === 0 ? (
+            <Box className="bg-background-100 p-6 rounded-lg border border-outline-200 shadow-medium">
+              <Text className="text-sm font-body text-typography-500">
+                Belum ada transaksi untuk {report.monthLabel}.
+              </Text>
             </Box>
+          ) : (
+            <VStack space="sm">
+              {report.transactions.map((transaction) => (
+                <Box
+                  key={transaction.id}
+                  className="bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium"
+                >
+                  <HStack className="justify-between items-start">
+                    <VStack space="xs" className="flex-1">
+                      <Text className="text-base font-heading font-bold text-typography-900">
+                        {transaction.name}
+                      </Text>
+                      <Text className="text-sm font-body text-typography-600">
+                        {transaction.package}
+                      </Text>
+                      <Text className="text-xs font-body text-typography-500">
+                        {transaction.phone}
+                      </Text>
+                    </VStack>
 
-            <Box className="bg-background-100 p-4 rounded-lg border border-outline-200 shadow-medium">
-              <HStack className="justify-between items-center">
-                <Text className="text-sm font-body text-typography-700">365 Hari Terakhir</Text>
-                <VStack space="xs" className="items-end">
-                  <Text className="text-base font-heading font-semibold text-typography-900">
-                    {formatCurrency(report.last365.revenue)}
-                  </Text>
-                  <Text className="text-xs font-body text-typography-500">
-                    {formatNumber(report.last365.count)} transaksi
-                  </Text>
-                </VStack>
-              </HStack>
-            </Box>
-          </View>
+                    <VStack space="xs" className="items-end">
+                      <Text className="text-base font-heading font-bold text-success-600">
+                        {formatCurrency(transaction.total_spending)}
+                      </Text>
+                      <Text className="text-xs font-body text-typography-500">
+                        {formatTransactionDate(transaction.created_at)}
+                      </Text>
+                    </VStack>
+                  </HStack>
+                </Box>
+              ))}
+            </VStack>
+          )}
         </VStack>
       </VStack>
     </ScrollView>

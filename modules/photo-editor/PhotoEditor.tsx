@@ -114,11 +114,11 @@ const STICKERS = [
 
 // Layout templates untuk grid-based editor
 const LAYOUT_TEMPLATES: LayoutTemplate[] = [
-  { id: '1x1', name: '1 Foto', cols: 1, rows: 1, cellAspectRatio: 2 / 3 },
+  { id: '1x1', name: '1 Foto', cols: 1, rows: 1, cellAspectRatio: 1 / 1 },
   { id: '2x2', name: '2×2 Grid', cols: 2, rows: 2, cellAspectRatio: 1 / 1 },
   { id: '3x3', name: '3×3 Grid', cols: 3, rows: 3, cellAspectRatio: 1 / 1 },
-  { id: '2x3', name: '2×3 Grid', cols: 2, rows: 3, cellAspectRatio: 2 / 3 },
-  { id: '4x6', name: '4×6 Grid', cols: 4, rows: 6, cellAspectRatio: 2 / 3 },
+  { id: '2x3', name: '2×3 Grid', cols: 2, rows: 3, cellAspectRatio: 1 / 1 },
+  { id: '4x6', name: '4×6 Grid', cols: 4, rows: 6, cellAspectRatio: 1 / 1 },
 ];
 
 // Types sudah di-import dari types.ts
@@ -219,7 +219,17 @@ export default function PhotoFrameApp() {
   const handleDropWithPosition = React.useCallback((photoId: string, x: number, y: number) => {
     console.log('Drop photo', photoId, 'at position', x, y);
 
-    // Get canvas bounds to convert absolute position to relative
+    // For single layout (1x1), directly set as selectedPhoto
+    if (selectedLayout && selectedLayout.cols === 1 && selectedLayout.rows === 1) {
+      const photo = photoList.find(p => p.id === photoId);
+      if (photo) {
+        setSelectedPhoto(photo);
+        setShowPhotoList(false);
+        return;
+      }
+    }
+
+    // For multi-cell layouts, use position-based cell detection
     const canvasElement = canvasRef.current as any;
     if (!canvasElement || !selectedLayout) {
       // Fallback: assign to first empty cell
@@ -266,7 +276,7 @@ export default function PhotoFrameApp() {
         handleDropPhotoToCell(emptyCell.id, photoId);
       }
     });
-  }, [selectedLayout, gridCells]);
+  }, [selectedLayout, gridCells, photoList]);
 
   // Callback functions untuk drag handlers - memoized to prevent re-renders
   const handleDragStart = React.useCallback((photoId: string) => {
@@ -674,32 +684,38 @@ export default function PhotoFrameApp() {
       // Define drawFrameAndStickers sebelum di-call
       const drawFrameAndStickers = () => {
         console.log('drawFrameAndStickers called');
+        const borderWidth = selectedFrame ? (EXPORT_WIDTH * 20) / CANVAS_WIDTH : 0;
+        const contentWidth = EXPORT_WIDTH - 2 * borderWidth;
+        const contentHeight = EXPORT_HEIGHT - 2 * borderWidth;
         // 2. Draw frame (SVG) - render as colored rectangles
         if (selectedFrame && selectedFrame.type === 'svg') {
           console.log('Drawing frame:', selectedFrame.color);
           const frameColor = selectedFrame.color;
-          const borderWidth = (EXPORT_WIDTH * 20) / CANVAS_WIDTH; // Scale border width
+          const frameBorderWidth = (EXPORT_WIDTH * 20) / CANVAS_WIDTH; // Scale border width
 
           // Draw frame borders
           ctx.fillStyle = frameColor;
           // Top border
-          ctx.fillRect(0, 0, EXPORT_WIDTH, borderWidth);
+          ctx.fillRect(0, 0, EXPORT_WIDTH, frameBorderWidth);
           // Left border
-          ctx.fillRect(0, 0, borderWidth, EXPORT_HEIGHT);
+          ctx.fillRect(0, 0, frameBorderWidth, EXPORT_HEIGHT);
           // Right border
-          ctx.fillRect(EXPORT_WIDTH - borderWidth, 0, borderWidth, EXPORT_HEIGHT);
+          ctx.fillRect(EXPORT_WIDTH - frameBorderWidth, 0, frameBorderWidth, EXPORT_HEIGHT);
           // Bottom border
-          ctx.fillRect(0, EXPORT_HEIGHT - borderWidth, EXPORT_WIDTH, borderWidth);
+          ctx.fillRect(0, EXPORT_HEIGHT - frameBorderWidth, EXPORT_WIDTH, frameBorderWidth);
         }
 
         // 3. Draw stickers
         console.log('Drawing stickers:', stickers.length);
+
         stickers.forEach((sticker) => {
           if (sticker.emoji) {
-            const fontSize = Math.round((EXPORT_WIDTH * 60) / CANVAS_WIDTH);
+            const fontSize = Math.round((contentWidth * 60) / CANVAS_WIDTH);
             ctx.font = `${fontSize}px Arial`;
-            const x = (sticker.x / CANVAS_WIDTH) * EXPORT_WIDTH;
-            const y = (sticker.y / CANVAS_HEIGHT) * EXPORT_HEIGHT;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const x = borderWidth + (sticker.x / CANVAS_WIDTH) * contentWidth;
+            const y = borderWidth + (sticker.y / CANVAS_HEIGHT) * contentHeight;
             ctx.save();
             ctx.translate(x, y);
             ctx.scale(sticker.scale, sticker.scale);
@@ -1227,9 +1243,13 @@ export default function PhotoFrameApp() {
                 // Single photo (1x1 layout) - Draggable
                 <DraggablePhoto photo={selectedPhoto} cellWidth={CANVAS_WIDTH} cellHeight={CANVAS_HEIGHT} />
               ) : (
-                // No photo selected
-                <View style={styles.gridCellDropZone}>
-                  <Text style={styles.gridCellDropZoneText}>Pilih foto</Text>
+                // No photo selected - show white background, drop zone only when dragging
+                <View style={{ flex: 1, backgroundColor: '#fff' }}>
+                  {draggingPhotoId && (
+                    <View style={styles.gridCellDropZone}>
+                      <Text style={styles.gridCellDropZoneText}>Drop photo here</Text>
+                    </View>
+                  )}
                 </View>
               )}
 

@@ -118,6 +118,22 @@ export function getAvailableReportYears(items: TransactionRecord[]): number[] {
   return Array.from(years).sort((a, b) => b - a);
 }
 
+export function getAvailableYearsForMonth(
+  items: TransactionRecord[],
+  month: number
+): number[] {
+  const years = new Set<number>();
+
+  items.forEach((item) => {
+    const date = new Date(item.created_at ?? "");
+    if (!Number.isNaN(date.getTime()) && date.getMonth() === month) {
+      years.add(date.getFullYear());
+    }
+  });
+
+  return Array.from(years).sort((a, b) => b - a);
+}
+
 export function normalizeTransaction(item: TransactionRecord): NormalizedTransaction {
   const date = new Date(item.created_at ?? "");
   const createdAtDate = Number.isNaN(date.getTime()) ? null : date;

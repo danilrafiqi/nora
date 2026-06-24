@@ -22,17 +22,32 @@ const TEXT = rgb(0.13, 0.16, 0.2);
 const MUTED = rgb(0.44, 0.48, 0.55);
 const LIGHT_BG = rgb(0.98, 0.98, 0.99);
 
+function sanitizePdfText(value: string): string {
+  return value
+    .normalize("NFKC")
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function truncateText(text: string, font: PDFFont, size: number, maxWidth: number): string {
-  if (font.widthOfTextAtSize(text, size) <= maxWidth) {
-    return text;
+  const sanitized = sanitizePdfText(text);
+
+  if (!sanitized) {
+    return "-";
   }
 
-  let output = text;
+  if (font.widthOfTextAtSize(sanitized, size) <= maxWidth) {
+    return sanitized;
+  }
+
+  let output = sanitized;
   while (output.length > 0 && font.widthOfTextAtSize(`${output}...`, size) > maxWidth) {
     output = output.slice(0, -1);
   }
 
-  return output ? `${output}...` : "";
+  return output ? `${output}...` : "-";
 }
 
 function drawSummaryCard(

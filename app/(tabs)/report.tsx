@@ -3,6 +3,7 @@ import { db } from "@/services/firebase";
 import { exportMonthlyReportPdf } from "@/utils/reportPdf";
 import {
   MONTH_OPTIONS,
+  getAvailableYearsForMonth,
   buildMonthlyReport,
   formatCurrency,
   formatNumber,
@@ -71,9 +72,28 @@ export default function ReportPage() {
   }, [loading, router, user]);
 
   const availableYears = useMemo(() => getAvailableReportYears(transactions), [transactions]);
+  const availableYearsForSelectedMonth = useMemo(() => {
+    return getAvailableYearsForMonth(transactions, Number(selectedMonth));
+  }, [transactions, selectedMonth]);
   const report = useMemo(() => {
     return buildMonthlyReport(transactions, Number(selectedYear), Number(selectedMonth));
   }, [transactions, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    if (!availableYears.length) return;
+
+    const hasDataInSelectedYear = availableYearsForSelectedMonth.includes(Number(selectedYear));
+    if (hasDataInSelectedYear) return;
+
+    if (availableYearsForSelectedMonth.length > 0) {
+      setSelectedYear(availableYearsForSelectedMonth[0].toString());
+      return;
+    }
+
+    if (!availableYears.includes(Number(selectedYear))) {
+      setSelectedYear(availableYears[0].toString());
+    }
+  }, [availableYears, availableYearsForSelectedMonth, selectedYear]);
 
   const handleExportPdf = async () => {
     if (report.transactions.length === 0) {
@@ -180,6 +200,16 @@ export default function ReportPage() {
                   {isExporting ? "Menyiapkan PDF..." : `Export PDF ${report.monthLabel}`}
                 </ButtonText>
               </Button>
+
+              {report.transactions.length === 0 ? (
+                <Text className="text-xs font-body text-typography-500">
+                  Tidak ada transaksi untuk {report.monthLabel}. Coba ganti tahunnya bila perlu.
+                </Text>
+              ) : (
+                <Text className="text-xs font-body text-typography-500">
+                  Periode aktif: {report.monthLabel} dengan {formatNumber(report.transactions.length)} transaksi.
+                </Text>
+              )}
             </View>
           </VStack>
         </Box>
